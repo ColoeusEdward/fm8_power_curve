@@ -1,2 +1,33 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
+
+
+.msg-animation-active {
+  animation-name: enter;
+  /* animation: enter 1; */
+  /* animation-duration: 3s; */
+  animation-iteration-count: 1;
+  /* animation-fill-mode:forwards; */
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  /* transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); */
+}
+@keyframes enter {
+  0% {
+    /* transform: translate(0, 50px); */
+    transform: scale(0) translate(0, 50px);
+    opacity: 0;
+  }
+  10% {
+    transform: scale(1) translate(0, 0px);
+    opacity: 1;
+  }
+  90% {
+    transform: scale(1) translate(0, 0px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0) translate(0, -50px);
+    opacity: 0;
+  }
+}

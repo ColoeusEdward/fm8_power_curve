@@ -14,8 +14,9 @@
       {
         "title": "fm8",
         "width": 1200,
-        "height": 700,
-        "resizable": false
+        "height": 720,
+        "resizable": false,
+        "decorations": false 
       }
     ],
     "security": {

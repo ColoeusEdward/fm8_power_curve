@@ -1,12 +1,78 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { ECharts, init } from 'echarts';
 import { PauseIcon, PlayIcon, ResetIcon } from './icon/svg';
-import { Button } from 'tdesign-react';
+import { Button, MessagePlugin } from 'tdesign-react';
+import { listen } from '@tauri-apps/api/event';
+import { invoke, Channel } from '@tauri-apps/api/core';
+import { configAtom } from './store';
+import { useAtom } from 'jotai';
+import { getMsgOpt, sleep } from './util';
 
 function PowerChart() {
   const chartRef = useRef(null);
+  const [config, setConfig] = useAtom(configAtom)
   let chartInstance: ECharts | null = null;
   const [isCatching, setIsCatching] = useState(false);
+
+  const startUdp = useCallback((forceStart?: boolean) => {
+      console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
+      if(isCatching && !forceStart) {
+      setIsCatching(false);
+      stopMsg()
+    }else if(!isCatching || forceStart){
+      setIsCatching(true);
+      initUdp()
+    }
+  }, [isCatching,config]);
+  
+
+  const initUdp =  useCallback(() => {
+    const onEvent = new Channel<UdpEvent>();
+    onEvent.onmessage = (message) => {
+      // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
+      // console.log(`got download event ${message.event}`);
+    };
+    
+    // const message = invoke('init_config', { config ,reader:evt},);
+    invoke('init_config', { config ,reader:onEvent},);
+  },[isCatching,config])
+  const stopMsg = () => {
+    invoke('stop_udp', { config },);
+  };
+  const addListen = async () => {
+    const faillistenPromise = listen('connect_fail', (event) => {
+      console.log('err:', event.payload);
+      MessagePlugin.error({ content: `error: ${event.payload}`, ...getMsgOpt(0),closeBtn: true });
+      setIsCatching(false);
+      // if(isCatching) {
+      //   sleep(2000).then(() => {
+      //     initUdp()
+      //   })
+      // }
+      // event.payload will be the JSON object sent from Rust:
+      // { sender: "...", data: "..." } or { sender: "...", data: "...", rawData: [...] }
+      // Update your UI with the received data
+    });
+    const connectStopPromise = listen('connect_stop', (event) => {
+      console.log('info:', event.payload);
+    })
+
+    const unlisten = await Promise.all([faillistenPromise, connectStopPromise]);
+    // initUdp();
+    return () => {
+      unlisten.forEach((unlisten) => unlisten());
+    };
+  }
+
+  const restartUdp = useCallback(() => {
+    console.log("🪵 [chart.tsx:65] ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
+    if(!isCatching) return
+    startUdp()
+    sleep(1000).then(() => {
+      console.log(`fucking sleep`,);
+      startUdp(true)
+    })
+  }, [isCatching,config]);
 
   useEffect(() => {
     // 在组件挂载后初始化 ECharts 实例
@@ -71,7 +137,7 @@ function PowerChart() {
             [7000, 180]
           ],
           "yAxisIndex": 0,
-          sampling: 'lttb' ,
+          sampling: 'lttb',
           "itemStyle": {
             "color": "#f45057"
           },
@@ -79,7 +145,7 @@ function PowerChart() {
             "color": "#f45057"
           },
           "tooltip": {
-            "valueFormatter": function (value:number) {
+            "valueFormatter": function (value: number) {
               return value + ' HP';
             }
           }
@@ -97,7 +163,7 @@ function PowerChart() {
             [7000, 134]
           ],
           "yAxisIndex": 1,
-          sampling: 'lttb' ,
+          sampling: 'lttb',
           "itemStyle": {
             "color": "#3b37c8"
           },
@@ -105,7 +171,7 @@ function PowerChart() {
             "color": "#3b37c8"
           },
           "tooltip": {
-            "valueFormatter": function (value:number) {
+            "valueFormatter": function (value: number) {
               return value + ' Nm';
             }
           }
@@ -129,27 +195,37 @@ function PowerChart() {
     chartInstance.setOption(option);
 
     // 在组件卸载时销毁 ECharts 实例，防止内存泄漏
+    let removeListen = () => { }
+    addListen().then(r => removeListen = r);
+    // sleep(5000).then(() => {
+    //   initUdp();
+    // })
     return () => {
       if (chartInstance) {
         chartInstance.dispose();
       }
+      removeListen();
     };
   }, []); // 空依赖数组确保 effect 只在挂载和卸载时执行一次
+
+  useEffect(() => {
+    restartUdp()
+  }, [config]);
 
   return <div className='w-full h-full'>
     <div ref={chartRef} className='w-full h-[580px]' style={{}}></div>
     <div className='flex items-center justify-center pt-8'>
 
-      <Button theme={isCatching ?"warning":'success'} variant="base" title='开始记录' className='' size='large' onClick={() => setIsCatching(!isCatching)} >
-        {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36}  />}
+      <Button theme={isCatching ? "warning" : 'success'} variant="base" title='开始记录' className='' size='large' onClick={() => {startUdp()}} >
+        {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}
       </Button>
       <span className='mr-8'></span>
       <Button theme="danger" size='large' title='重置图表' variant="base">
-        <ResetIcon size={36}  />
+        <ResetIcon size={36} />
       </Button>
       <span className='mr-8'></span>
       {/* <Button color="primary">Button</Button> */}
-      
+
     </div>
   </div>;
 }
