@@ -52,7 +52,7 @@ jobs:
         # files: |
         #   target/release/my_rust_pratice-*.exe
         files: |
-            target/release/fm8.exe
+            src-tauri/target/release/fm8.exe
         draft: false
         prerelease: false
       env:
