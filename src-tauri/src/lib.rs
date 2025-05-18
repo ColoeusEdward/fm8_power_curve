@@ -7,10 +7,9 @@ mod util;
 mod config;
 
 #[tauri::command]
-fn greet(name: &str,reader_event: tauri::ipc::Channel<enums::DownloadEvent>) -> String {
+fn greet(name: &str) -> String {
     let rs = format!("Hello, {}! You've been greeted from Rust!", name);
     println!("🪵 [lib.rs:9]~ token ~ \x1b[0;32mrs\x1b[0m = {}", rs);
-    reader_event.send(enums::DownloadEvent::Started{ url: "https://www.baidu.com", download_id: 1, content_length: 100 });
     rs
 }
 

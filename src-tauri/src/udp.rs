@@ -174,8 +174,8 @@ pub fn stop_udp(_win: tauri::Window) {
 
 #[tauri::command(async)]
 pub async fn test_channel_data(
-    win: tauri::Window,
-    config: enums::MyState,
+    // win: tauri::Window,
+    // config: enums::MyState,
     reader:  tauri::ipc::Channel<DownloadEvent<'static>>,
 ) -> Result<(), String>  {
     loop {
@@ -189,13 +189,12 @@ pub async fn test_channel_data(
         sleep(Duration::from_millis(1000)).await;
         // win.emit("connect_stop", format!("UDP listener thread stopped: ")).unwrap();
     }
-    Ok(())
 }
 
 #[tauri::command]
 pub fn fuck_channel(
-    win: tauri::Window,
-    config: enums::MyState,
+    // win: tauri::Window,
+    // config: enums::MyState,
     reader_event:  tauri::ipc::Channel<DownloadEvent>,
 ) -> Result<(), String>  {
     let res = reader_event.send(DownloadEvent::Started {
