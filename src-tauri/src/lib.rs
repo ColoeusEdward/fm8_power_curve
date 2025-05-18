@@ -3,6 +3,8 @@ use udp::{fuck_channel, init_config, stop_udp, test_channel_data};
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod udp;
 mod enums;
+mod util;
+mod config;
 
 #[tauri::command]
 fn greet(name: &str,reader_event: tauri::ipc::Channel<enums::DownloadEvent>) -> String {

@@ -16,7 +16,7 @@ function App() {
   // const [ip, setIp] = useState('127.0.0.1');
   const [config, setConfig] = useAtom(configAtom)
   const [tempConfig, setTempConfig] = useState<typeof config>({ ...config })
-
+  const [initCount, setInitCount] = useState(0)
 
 
   const closeWin = () => {
@@ -33,8 +33,11 @@ function App() {
   }
 
   useEffect(() => {
-    // init_udp()
-  }, [])
+    sleep(50).then(() => {
+      setTempConfig({ ...config })
+    })
+
+  }, [config])
 
   return (
     <main className="w-full h-[720px]">

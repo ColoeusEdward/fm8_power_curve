@@ -1,10 +1,12 @@
 type UdpEvent = {
   event: 'dataIn',
-  data: {
-    str: string,
-    content_length: string
-  },
+  data:UdpDataItem[],
 }
+
+type UdpDataItem = {
+   name: string
+   val: string
+} 
 
 type DownloadEvent =
   | {

@@ -47,9 +47,15 @@ pub struct UdpDataPayload {
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "event", content = "data")]
 pub enum UdpDataEvent<'a> {
      DataIn {
-         str: &'a str,
-         content_length: usize,
+         data: &'a Vec<UdpDataItem>,
+        //  content_length: usize,
   }
+}
+
+#[derive(Clone, Serialize)]
+pub struct UdpDataItem {
+    pub name: String,
+    pub val: String
 }
 
 #[derive(Clone, Serialize)]

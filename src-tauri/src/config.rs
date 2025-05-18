@@ -190,7 +190,7 @@ pub static TELEMETRY_FIELDS: &[TelemetryDataField] = &[
 pub struct TelemetryDataField {
     pub name: &'static str,
     pub type_name: &'static str,
-    pub offset: u32,
-    pub bytes: u32,
+    pub offset: usize,
+    pub bytes: usize,
     pub description: &'static str,
 }

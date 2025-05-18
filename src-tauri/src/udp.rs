@@ -1,16 +1,15 @@
 use std::{
-    future, net::UdpSocket, sync::{
+    net::UdpSocket, sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc, OnceLock,
-    }, thread
+        OnceLock,
+    }
 };
-use tauri::{Emitter, State};
+use tauri::{Emitter};
 use tokio::{
-    sync::{mpsc, Mutex},
     time::{sleep, Duration},
 };
 
-use crate::enums::{self, DownloadEvent, RustState, UdpDataEvent, UdpDataPayload};
+use crate::{config::TELEMETRY_FIELDS, enums::{self, DownloadEvent,  UdpDataEvent, UdpDataItem}, util::is_port_available};
 
 pub static ISSTART: OnceLock<AtomicUsize> = OnceLock::new();
 pub static THREAD_RUNINNG_FLAG: OnceLock<AtomicBool> = OnceLock::new();
@@ -34,7 +33,7 @@ pub async  fn init_config(
     // READ.set(reader);
     let is_start = ISSTART.get_or_init(|| AtomicUsize::new(0));
 
-    if (is_start.load(std::sync::atomic::Ordering::SeqCst) > 0) {
+    if is_start.load(std::sync::atomic::Ordering::SeqCst) > 0 {
         println!("UDP listener is already running");
         return Ok(());
     }
@@ -82,7 +81,7 @@ pub async  fn init_config(
             }
 
             match socket.recv_from(&mut buffer) {
-                Ok((size, src)) => {
+                Ok((size, _)) => {
                     
                     // let data = &buffer[..size];
                     // // Assuming data is UTF-8 for simplicity. Handle other formats as needed.
@@ -99,13 +98,19 @@ pub async  fn init_config(
 
                     // let data = buffer[..size].to_vec();
                     println!("🪵 [udp.rs:108]~ token ~ \x1b[0;32mdata\x1b[0m = {} {}", size,String::from_utf8_lossy(&buffer as &[u8]));
-                    // let payload = UdpDataPayload {
-                    //     sender: src.to_string(),
-                    //     data,
-                    // };
+           
+                    let name_list = ["Power", "CurrentEngineRpm", "Torque"];
+                    let field_vec = TELEMETRY_FIELDS.iter().filter(|item| name_list.contains(&item.name)).collect::<Vec<_>>();
+                    let mut data_vec:Vec<UdpDataItem> = Vec::new();
 
+                    for item in field_vec.iter() {
+                        let buf: &[u8] = &buffer[item.offset..item.offset + item.bytes];
+                        let val = String::from_utf8_lossy(&buf as &[u8]).to_string();
+                        data_vec.push(UdpDataItem { name: item.name.to_string(), val });
+                    }
+                  
                     let res = reader.send(UdpDataEvent::DataIn { 
-                        str: &String::from_utf8_lossy(&buffer as &[u8]).trim(), content_length: size 
+                        data: &data_vec
                     });
                     match res {
                         Ok(_) => {}
@@ -116,22 +121,6 @@ pub async  fn init_config(
                         }
                     }
 
-                    // if  {
-                    //     println!("Channel receiver dropped, listener task exiting.");
-                    //     win.emit(
-                    //         "connect_fail",
-                    //         format!("Channel receiver dropped, listener task exiting."),
-                    //     )
-                    //     .unwrap();
-                    //     break;
-                    // }
-                    // Send data into the channel
-                    // if tx.send(payload).await.is_err() {
-                    //     // Receiver has been dropped, means the emitter task stopped
-                    //     println!("Channel receiver dropped, listener task exiting.");
-                    //     win.emit("connect_fail", format!("Channel receiver dropped, listener task exiting.")).unwrap();
-                    //     break;
-                    // }
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     // Timeout occurred, check the running flag and continue or exit
@@ -141,7 +130,11 @@ pub async  fn init_config(
                 }
                 Err(e) => {
                     eprintln!("UDP receive error: {}", e);
-                    win.emit("connect_fail", format!("UDP receive error: {}", e))
+                    let mut err = e.to_string();
+                    if !is_port_available(&config.ip,config.port as u16) {
+                        err = format!("端口 {} 已被程序占用", config.port);
+                    }
+                    win.emit("connect_fail", format!("UDP receive error: {}", err))
                         .unwrap();
 
                     // Handle other errors, maybe emit an error event
@@ -172,19 +165,6 @@ pub async  fn init_config(
     // Emit a custom event to the frontend
     // window.emit("config-to_rust").expect("failed to emit event");
 }
-// pub fn wait_to_reconnet() {
-//     tokio::spawn(async move {
-//         sleep(Duration::from_secs(1)).await;
-//         init_config(enums::MyState::default()).unwrap();
-//     });
-// }
-// pub fn udp_start(
-//     win: tauri::Window,
-//     config: enums::MyState,
-//     reader: tauri::ipc::Channel<UdpDataEvent>,
-// ) -> Result<(), String> {
-    
-// }
 
 #[tauri::command]
 pub fn stop_udp(_win: tauri::Window) {
