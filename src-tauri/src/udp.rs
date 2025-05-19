@@ -53,9 +53,14 @@ pub async  fn init_config(
         Ok(s) => s,
         Err(e) => {
             println!("Failed to bind UDP socket: {}", e);
-            return Err(format!("Failed to bind UDP socket: {}", e));
+            is_start.store(0, std::sync::atomic::Ordering::SeqCst);
+            thread_running_flag.store(false, Ordering::SeqCst);
+            win.emit("connect_fail", format!("UDP receive error: Failed to bind UDP socket: {}", e))
+                        .unwrap();
+            return Err(format!("Failed to bind UDP socket:  {}", e));
         }
     };
+    
     println!("Listening on UDP: {}", socket_addr);
 
     

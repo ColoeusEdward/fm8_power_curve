@@ -16,7 +16,8 @@
         "width": 1200,
         "height": 720,
         "resizable": false,
-        "decorations": false 
+        "decorations": false ,
+        "devtools": true
       }
     ],
     "security": {

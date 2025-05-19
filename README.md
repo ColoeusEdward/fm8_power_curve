@@ -1,4 +1,4 @@
-# Tauri + React + Typescript
+# Forza Motorsport 马力曲线绘制工具
 
 This template should help get you started developing with Tauri, React and Typescript in Vite.
 
