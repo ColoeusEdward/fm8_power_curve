@@ -60,10 +60,9 @@ function App() {
             <MaxPart />
             <Divider align="left" ><span className="text-xl">配置</span></Divider>
             <div className="flex pl-2">
-              <span style={{ lineHeight: '32px' }} className="mx-2 w-18 text-gray-600 text-sm">游戏遥测IP</span>
-              <Input style={{ width: 120 }} value={tempConfig.ip} onChange={(e) => { setTempConfig({ ...tempConfig, ip: e }) }} />
-              <span style={{ lineHeight: '32px' }} className="mx-2 w-22 text-gray-600 text-sm">游戏遥测端口</span>
-              <Input style={{ width: 70 }} value={tempConfig.port + ""} onChange={(e) => { setTempConfig({ ...tempConfig, port: Number(e) }) }} />
+              <span style={{ lineHeight: '32px' }} className="mx-2 w-22 text-gray-600 text-sm text-right">游戏遥测IP</span>
+              <Input style={{ width: 260 }} value={tempConfig.ip} onChange={(e) => { setTempConfig({ ...tempConfig, ip: e }) }} />
+
               {/* <span style={{ lineHeight: '32px' }} className="mx-2"> . </span>
             <Input style={{ width: 50 }} defaultValue="0" />
             <span style={{ lineHeight: '32px' }} className="mx-2"> . </span>
@@ -71,6 +70,11 @@ function App() {
             <span style={{ lineHeight: '32px' }} className="mx-2"> . </span>
             <Input style={{ width: 50 }} defaultValue="1" /> */}
             </div>
+            <div className="flex pl-2 mt-2">
+              <span style={{ lineHeight: '32px' }} className="mx-2 w-22 text-gray-600 text-sm  text-right">游戏遥测端口</span>
+              <Input style={{ width: 260 }} value={tempConfig.port + ""} onChange={(e) => { setTempConfig({ ...tempConfig, port: Number(e) }) }} />
+            </div>
+
             <div className="flex w-full pl-2 mt-2  justify-end px-2 pt-4">
               <Button theme="primary" onClick={saveConfig} >保存</Button>
             </div>
