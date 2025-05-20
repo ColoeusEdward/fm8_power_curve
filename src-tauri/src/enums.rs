@@ -1,7 +1,6 @@
-use std::{default::Default, };
+use std::default::Default;
 
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct MyState {
@@ -18,7 +17,6 @@ impl Default for MyState {
         }
     }
 }
-
 
 // #[derive(Serialize, Deserialize)]
 // pub struct RustState {
@@ -39,42 +37,57 @@ impl Default for MyState {
 pub struct UdpDataPayload {
     pub sender: String,
     pub data: Vec<u8>, // Use bytes for raw UDP data
-    // You might add a timestamp, etc.
+                       // You might add a timestamp, etc.
 }
 
 #[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "event", content = "data")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "event",
+    content = "data"
+)]
 pub enum UdpDataEvent<'a> {
-     DataIn {
-         data: &'a Vec<UdpDataItem>,
+    DataIn {
+        data: &'a Vec<UdpDataItem>,
         //  content_length: usize,
-  }
+    },
 }
 
 #[derive(Clone, Serialize)]
 pub struct UdpDataItem {
     pub name: String,
-    pub val: String
+    pub val: String,
 }
 
 #[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "event", content = "data")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "event",
+    content = "data"
+)]
 pub enum DownloadEvent<'a> {
-  Started {
-    url: &'a str,
-    download_id: usize,
-    content_length: usize,
-  },
-//   Progress {
-//     download_id: usize,
-//     chunk_length: usize,
-//   },
-//   Finished {
-//     download_id: usize,
-//   },
+    Started {
+        url: &'a str,
+        download_id: usize,
+        content_length: usize,
+    },
+    //   Progress {
+    //     download_id: usize,
+    //     chunk_length: usize,
+    //   },
+    //   Finished {
+    //     download_id: usize,
+    //   },
 }
 
 // pub struct Progress {
 //     pub value: u8,
 //     pub status: String,
 // }
+
+#[derive(Serialize, Deserialize)]
+pub struct LocalDataContainer {
+    pub buffers: Vec<Vec<u8>>,
+}

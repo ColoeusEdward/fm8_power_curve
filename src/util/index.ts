@@ -10,3 +10,5 @@ export const getMsgOpt = (dur=3000) => {
     }
   }
 }
+
+export const isDev = () => import.meta.env.MODE === 'development';
