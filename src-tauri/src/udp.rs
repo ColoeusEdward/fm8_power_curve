@@ -245,6 +245,7 @@ pub fn set_saving_data_flag() {
         match save_res {
             Ok(_) => {
                 println!("🪵 [udp.rs:222]~ token ~ \x1b[0;32mok\x1b[0m = {}", "ok");
+                temp_buf_list.clear();
             }
             Err(e) => {
                 println!("🪵 [udp.rs:222]~ token ~ \x1b[0;32merror\x1b[0m = {}", e);
