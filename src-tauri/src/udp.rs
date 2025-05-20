@@ -9,7 +9,7 @@ use tauri::Emitter;
 use tokio::time::{sleep, Duration};
 
 use crate::{
-    config::TELEMETRY_FIELDS,
+    config::{TelemetryDataField, TELEMETRY_FIELDS},
     enums::{self, DownloadEvent, UdpDataEvent, UdpDataItem},
     util::{is_port_available, load_raw_bytes_from_file, save_raw_bytes_to_file},
 };
@@ -79,6 +79,23 @@ pub async fn init_config(
             .iter()
             .filter(|item| name_list.contains(&item.name))
             .collect::<Vec<_>>();
+        fn read_fn_map(item: TelemetryDataField, buf: Vec<u8>) -> String {
+            if item.type_name == "F32" {
+                return f32::from_le_bytes(buf.try_into().unwrap()).to_string();
+            } else if item.type_name == "S32" {
+                return i32::from_le_bytes(buf.try_into().unwrap()).to_string();
+            } else if item.type_name == "U32" {
+                return u32::from_le_bytes(buf.try_into().unwrap()).to_string();
+            } else if item.type_name == "U16" {
+                return u16::from_le_bytes(buf.try_into().unwrap()).to_string();
+            } else if item.type_name == "U8" {
+                return u8::from_le_bytes(buf.try_into().unwrap()).to_string();
+            } else if item.type_name == "S8" {
+                return i8::from_le_bytes(buf.try_into().unwrap()).to_string();
+            } else {
+                return "".to_string();
+            }
+        }
         while thread_running_flag.load(Ordering::SeqCst) {
             // Use a non-blocking or timed receive in a real app to allow checking the flag
             // For simplicity here, we'll use blocking, which makes stopping immediate less trivial
@@ -96,7 +113,7 @@ pub async fn init_config(
 
             match socket.recv_from(&mut buffer) {
                 Ok((_size, _)) => {
-                    save_5_sec_data(buffer).unwrap();
+                    save_temp_data(buffer).unwrap();
                     // let data = &buffer[..size];
                     // // Assuming data is UTF-8 for simplicity. Handle other formats as needed.
                     // let received_text = String::from_utf8_lossy(data).to_string();
@@ -116,8 +133,12 @@ pub async fn init_config(
                     let mut data_vec: Vec<UdpDataItem> = Vec::new();
 
                     for item in field_vec.iter() {
-                        let buf: &[u8] = &buffer[item.offset..item.offset + item.bytes - 1];
-                        let val = String::from_utf8_lossy(&buf as &[u8]).to_string();
+                        let mut buf: Vec<u8> = Vec::new();
+                        for i in 0..item.bytes {
+                            buf.push(buffer[item.offset + i]);
+                        }
+                        // let buf: &[u8] = &buffer[item.offset..item.offset + item.bytes - 1];
+                        let val = read_fn_map(**item, buf);
                         data_vec.push(UdpDataItem {
                             name: item.name.to_string(),
                             val,
@@ -291,7 +312,7 @@ pub fn local_data_test_mode(reader: tauri::ipc::Channel<UdpDataEvent<'static>>) 
     //    Ok(())
 }
 
-fn save_5_sec_data(buf: [u8; 1500]) -> Result<(), String> {
+fn save_temp_data(buf: [u8; 1500]) -> Result<(), String> {
     let start_flag = SAING_DATA.get_or_init(|| AtomicBool::new(false));
     if start_flag.load(Ordering::SeqCst) {
         let temp_buf_list = TEMP_SAVING_BUFFER.get_or_init(|| Mutex::new(Vec::new()));

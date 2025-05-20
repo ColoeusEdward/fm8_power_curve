@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "td": "tauri dev",
-    "ob": "pnpm version patch && git push origin --follow-tags && echo 'preBuildServer'"
+    "ob": "pnpm ck && pnpm version patch && git push origin --follow-tags && echo 'preBuildServer'",
+    "ck": "cd src-tauri && cargo check"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.6",
