@@ -1,11 +1,21 @@
 type UdpEvent = {
   event: 'dataIn',
-  data:UdpDataItem[],
+  data:{data:UdpDataItem[]},
+}
+
+type UdpEvent2 = {
+  event: 'dataIn',
+  data:{data:UdpDataItem2},
 }
 
 type UdpDataItem = {
-   name: string
-   val: string
+  name: string
+    val: string
+} 
+
+type UdpDataItem2 = {
+  power:number[][]
+  torque:number[][]
 } 
 
 type DownloadEvent =

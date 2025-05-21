@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { ECharts, init } from 'echarts';
 import { AlarmClockIcon, PauseIcon, PlayIcon, ResetIcon } from './icon/svg';
 import { Button, MessagePlugin } from 'tdesign-react';
@@ -7,6 +7,7 @@ import { invoke, Channel } from '@tauri-apps/api/core';
 import { configAtom } from './store';
 import { useAtom } from 'jotai';
 import { getMsgOpt, isDev, sleep } from './util';
+import { tr } from 'framer-motion/client';
 
 const option = {
   "xAxis": {
@@ -131,8 +132,9 @@ function PowerChart() {
   const chartRef = useRef(null);
   const zeroData: [number, number][] = []
   const [config, setConfig] = useAtom(configAtom)
-  let chartInstance: ECharts | null = null;
+  let chartInstance = useRef<ECharts | null >(null);
   const [isCatching, setIsCatching] = useState(false);
+  const isCatchingRef = useRef(isCatching);
 
   const startUdp = useCallback((forceStart?: boolean) => {
     console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
@@ -142,75 +144,87 @@ function PowerChart() {
     } else if (!isCatching || forceStart) {
       setIsCatching(true);
       initUdp()
-      loopUpdateChart();
     }
   }, [isCatching, config]);
 
-  const testStartUdp = useCallback((forceStart?: boolean) => {
-    console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
-    if (isCatching && !forceStart) {
-      setIsCatching(false);
-      stopMsg()
-    } else if (!isCatching || forceStart) {
-      setIsCatching(true);
-      // initUdp()
-      const onEvent = new Channel<UdpEvent>();
+
+  const testStartUdp = useCallback(() => {
+    const testEvent = () => {
+      const onEvent = new Channel<UdpEvent2>();
       onEvent.onmessage = (message) => {
         let dat = message.data;
-        buildData(dat)
-        // console.log("🪵 [chart.tsx:149] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
+        try {
+          buildData(dat.data)
+        } catch (error) {
+          console.log("🪵 [chart.tsx:157] ~ token ~ \x1b[0;32merror\x1b[0m = ", error);
+        }
+        console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
         // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
         // console.log(`got download event ${message.event}`);
       };
-      invoke('local_data_test_mode', { config, reader: onEvent },);
-      loopUpdateChart();
+      return onEvent
     }
+    if (isCatching) {
+      setIsCatching(false);
+      isCatchingRef.current = false
+      stopMsg()
+    } else if (!isCatching) {
+      setIsCatching(true);
+      isCatchingRef.current = true
+      // initUdp()
+      // console.log("🪵 [chart.tsx:168] ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
+
+      invoke('local_data_test_mode', { config,  },);
+      sleep(50).then(() => {
+        invoke('loop_send_data', { config,reader: testEvent() },);
+      })
+    }
+
   }, [isCatching, config]);
 
   const saveLoaclUdpData = () => {
-    invoke('set_saving_data_flag', { config},);
+    invoke('set_saving_data_flag', { config },);
 
   }
 
-  const loopUpdateChart = useCallback(() => {
-    if (isCatching) {
-      let newOption = JSON.parse(JSON.stringify(option));
-      newOption.series[0].data = chartData.power;
-      newOption.series[1].data = chartData.torque;
-      if (chartInstance) {
-        chartInstance.setOption(newOption);
-      }
-      sleep(500).then(() => loopUpdateChart());
+  // const loopUpdateChart = useCallback((start?:boolean) => {
+  //   console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
+  //   if (isCatchingRef.current) {
+  //     let newOption = JSON.parse(JSON.stringify(option));
+  //     newOption.series[0].data = chartData.power;
+  //     newOption.series[1].data = chartData.torque;
+  //       console.log("🪵 [chart.tsx:187] ~ token ~ \x1b[0;32mchartInstance.current\x1b[0m = ", chartInstance.current);
+  //     if (chartInstance.current) {
+  //       chartInstance.current.setOption(newOption);
+  //       console.log("🪵 [chart.tsx:188] ~ token ~ \x1b[0;32mnewOption\x1b[0m = ", newOption);
+  //     }
+  //     sleep(500).then(() => loopUpdateChart());
 
+  //   }
+  // }, [isCatching]);
+
+  const buildData = (data: UdpDataItem2) => {
+    // console.log("🪵 [chart.tsx:196] ~ token ~ \x1b[0;32mdata\x1b[0m = ", data);
+    // let powerList = chartData.power;
+    // let torqueList = chartData.torque;
+    let plist = data.power
+    let tlist = data.torque
+    // chartData.power = plist;
+    // chartData.torque = tlist
+    let newOption = JSON.parse(JSON.stringify(option));
+    newOption.series[0].data = plist;
+    newOption.series[1].data = tlist;
+    if (chartInstance.current) {
+      chartInstance.current.setOption(newOption);
     }
-  }, [isCatching]);
-
-  const buildData = (data: UdpDataItem[]) => {
-    let powerList = chartData.power;
-    let torqueList = chartData.torque;
-    let rpm = Number(data[1].val);
-    let power = Number(data[0].val);
-    let torque = Number(data[3].val);
-    for (let i = powerList.length - 1; i >= 0; i--) {
-      if (powerList[i][0] <= rpm) {
-        //inset data in array
-        powerList.splice(i, 0, [rpm, power]);
-      }
-      if (torqueList[i][0] <= rpm) {
-        torqueList.splice(i, 0, [rpm, torque]);
-      }
-    }
-
-    // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mpowerList\x1b[0m = ", powerList);
-
   };
 
 
   const initUdp = useCallback(() => {
-    const onEvent = new Channel<UdpEvent>();
+    const onEvent = new Channel<UdpEvent2>();
     onEvent.onmessage = (message) => {
       let dat = message.data;
-      buildData(dat)
+      buildData(dat.data)
       // console.log("🪵 [chart.tsx:149] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
       // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
       // console.log(`got download event ${message.event}`);
@@ -259,19 +273,23 @@ function PowerChart() {
   }, [isCatching, config]);
 
   const reset = () => {
+    chartData.power = zeroData;
+    chartData.torque = zeroData;
     let newOption = JSON.parse(JSON.stringify(option));
     newOption.series[0].data = zeroData;
     newOption.series[1].data = zeroData;
-    if (chartInstance) {
-      chartInstance.setOption(newOption);
+    
+      console.log("🪵 [chart.tsx:281] ~ token ~ \x1b[0;32mchartInstance\x1b[0m = ", chartInstance.current);
+      if (chartInstance.current) {
+      chartInstance.current.setOption(newOption);
     }
   }
 
 
   useEffect(() => {
     // 在组件挂载后初始化 ECharts 实例
-    chartInstance = init(chartRef.current);
-    chartInstance.setOption(option);
+    chartInstance.current = init(chartRef.current);
+    chartInstance.current.setOption(option);
 
     // 在组件卸载时销毁 ECharts 实例，防止内存泄漏
     let removeListen = () => { }
@@ -280,12 +298,16 @@ function PowerChart() {
     //   initUdp();
     // })
     return () => {
-      if (chartInstance) {
-        chartInstance.dispose();
+      if (chartInstance.current) {
+        chartInstance.current.dispose();
       }
       removeListen();
     };
   }, []); // 空依赖数组确保 effect 只在挂载和卸载时执行一次
+
+  useEffect(() => {
+    
+  },[isCatching])
 
   useEffect(() => {
     restartUdp()
@@ -305,19 +327,19 @@ function PowerChart() {
       <span className='mr-8'></span>
       {
         isDev() && [
-          <Button theme={'primary'} 
-          // disabled={!isCatching}
-           variant="base" title='save file' className='' size='large' onClick={() => { saveLoaclUdpData() }} >
+          <Button theme={'primary'}
+            // disabled={!isCatching}
+            variant="base" title='save file' className='' size='large' onClick={() => { saveLoaclUdpData() }} >
             {/* {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}test */}
             <AlarmClockIcon size={36} />
           </Button>,
           <span className='mr-8'></span>,
           <Button theme={isCatching ? "warning" : 'success'} variant="base" title='test开始记录' className='' size='large' onClick={() => { testStartUdp() }} >
-            {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />} 
+            {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}
             <span>test local</span>
           </Button>,
           <span className='mr-8'></span>,
-          
+
         ]
       }
 
@@ -328,4 +350,4 @@ function PowerChart() {
   </div>;
 }
 
-export default PowerChart;
+export default memo(PowerChart);

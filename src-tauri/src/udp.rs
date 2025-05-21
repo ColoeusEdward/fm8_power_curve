@@ -1,23 +1,26 @@
 use std::{
-    net::UdpSocket,
-    sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        Mutex, OnceLock,
-    },
+    collections::BTreeMap, net::UdpSocket, sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Mutex, OnceLock
+    }
 };
-use tauri::Emitter;
+use tauri::{Emitter};
 use tokio::time::{sleep, Duration};
 
 use crate::{
-    config::{TelemetryDataField, TELEMETRY_FIELDS},
-    enums::{self, DownloadEvent, UdpDataEvent, UdpDataItem},
-    util::{is_port_available, load_raw_bytes_from_file, save_raw_bytes_to_file},
+    config::{ TELEMETRY_FIELDS},
+    enums::{self,  DownloadEvent,  UdpDataEvent2, UdpDataItem, UdpDataItem2},
+    util::{is_port_available, load_raw_bytes_from_file, read_fn_map, save_raw_bytes_to_file},
 };
 
 pub static ISSTART: OnceLock<AtomicUsize> = OnceLock::new();
 pub static THREAD_RUNINNG_FLAG: OnceLock<AtomicBool> = OnceLock::new();
 pub static SAING_DATA: OnceLock<AtomicBool> = OnceLock::new();
 pub static TEMP_SAVING_BUFFER: OnceLock<Mutex<Vec<Vec<u8>>>> = OnceLock::new();
+// pub static POWER_CHART_DATA: OnceLock<Arc<Mutex<Vec<Vec<i32>>>>> = OnceLock::new();
+// pub static TORQUE_CHART_DATA: OnceLock<Arc<Mutex<Vec<Vec<i32>>>>> = OnceLock::new();
+
+pub static POWER_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = OnceLock::new();
+pub static TORQUE_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = OnceLock::new();
 
 // pub static READ: OnceLock<tauri::ipc::Channel<UdpDataEvent>> = OnceLock::new();
 // pub static READ: OnceLock<Box<dyn tauri::ipc::Channel<UdpDataEvent>>> = OnceLock::new();
@@ -28,7 +31,6 @@ pub static TEMP_SAVING_BUFFER: OnceLock<Mutex<Vec<Vec<u8>>>> = OnceLock::new();
 pub async fn init_config(
     win: tauri::Window,
     config: enums::MyState,
-    reader: tauri::ipc::Channel<UdpDataEvent<'static>>,
 ) -> Result<(), String> {
     println!(
         "🪵 [udp.rs:7]~ token ~ \x1b[0;32mconfig\x1b[0m = {} {}",
@@ -79,24 +81,10 @@ pub async fn init_config(
             .iter()
             .filter(|item| name_list.contains(&item.name))
             .collect::<Vec<_>>();
-        fn read_fn_map(item: TelemetryDataField, buf: Vec<u8>) -> String {
-            if item.type_name == "F32" {
-                return f32::from_le_bytes(buf.try_into().unwrap()).to_string();
-            } else if item.type_name == "S32" {
-                return i32::from_le_bytes(buf.try_into().unwrap()).to_string();
-            } else if item.type_name == "U32" {
-                return u32::from_le_bytes(buf.try_into().unwrap()).to_string();
-            } else if item.type_name == "U16" {
-                return u16::from_le_bytes(buf.try_into().unwrap()).to_string();
-            } else if item.type_name == "U8" {
-                return u8::from_le_bytes(buf.try_into().unwrap()).to_string();
-            } else if item.type_name == "S8" {
-                return i8::from_le_bytes(buf.try_into().unwrap()).to_string();
-            } else {
-                return "".to_string();
-            }
-        }
+        let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
         while thread_running_flag.load(Ordering::SeqCst) {
+            
             // Use a non-blocking or timed receive in a real app to allow checking the flag
             // For simplicity here, we'll use blocking, which makes stopping immediate less trivial
             // A better approach would be using a channel or tokio with select!
@@ -114,10 +102,6 @@ pub async fn init_config(
             match socket.recv_from(&mut buffer) {
                 Ok((_size, _)) => {
                     save_temp_data(buffer).unwrap();
-                    // let data = &buffer[..size];
-                    // // Assuming data is UTF-8 for simplicity. Handle other formats as needed.
-                    // let received_text = String::from_utf8_lossy(data).to_string();
-                    // println!("Received {} bytes from {}: {}", size, src, received_text);
 
                     // // Emit event to the frontend
                     // let payload = serde_json::json!({
@@ -127,41 +111,41 @@ pub async fn init_config(
                     // });
                     // win.emit("udp_data",  payload).unwrap();
 
-                    // let data = buffer[..size].to_vec();
-                    // println!("🪵 [udp.rs:108]~ token ~ \x1b[0;32mdata\x1b[0m = {} {}", size,String::from_utf8_lossy(&buffer as &[u8]));
+                    // let mut data_vec: Vec<UdpDataItem> = Vec::new();
+                    let mut vv: Vec<i32> = Vec::new();//power,rpm,torque
 
-                    let mut data_vec: Vec<UdpDataItem> = Vec::new();
 
                     for item in field_vec.iter() {
                         let mut buf: Vec<u8> = Vec::new();
                         for i in 0..item.bytes {
                             buf.push(buffer[item.offset + i]);
                         }
-                        // let buf: &[u8] = &buffer[item.offset..item.offset + item.bytes - 1];
                         let val = read_fn_map(**item, buf);
-                        data_vec.push(UdpDataItem {
-                            name: item.name.to_string(),
-                            val,
-                        });
+                        let val:i32 = val.parse().unwrap();
+                        vv.push(val);
+
                     }
+
+                    pcdata.lock().unwrap().insert(vv[1], [vv[1], vv[0]].to_vec());
+                    todata.lock().unwrap().insert(vv[1], [vv[1], vv[2]].to_vec());
                     println!(
                         "🪵 [udp.rs:118]~ token ~ \x1b[0;32mdata_vec\x1b[0m = {}",
-                        data_vec[0].val
+                        vv[1]
                     );
 
-                    let res = reader.send(UdpDataEvent::DataIn { data: &data_vec });
-                    match res {
-                        Ok(_) => {}
-                        Err(e) => {
-                            println!("Failed to send data to channel: {}", e);
-                            win.emit(
-                                "connect_fail",
-                                format!("Failed to send data to channel: {}", e),
-                            )
-                            .unwrap();
-                            break;
-                        }
-                    }
+                    // let res = reader.send(UdpDataEvent::DataIn { data: &data_vec });
+                    // match res {
+                    //     Ok(_) => {}
+                    //     Err(e) => {
+                    //         println!("Failed to send data to channel: {}", e);
+                    //         win.emit(
+                    //             "connect_fail",
+                    //             format!("Failed to send data to channel: {}", e),
+                    //         )
+                    //         .unwrap();
+                    //         break;
+                    //     }
+                    // }
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     // Timeout occurred, check the running flag and continue or exit
@@ -188,6 +172,8 @@ pub async fn init_config(
         thread_running_flag.store(false, Ordering::SeqCst);
         win.emit("connect_stop", format!("UDP listener thread stopped: "))
             .unwrap();
+        pcdata.lock().unwrap().clear();
+        todata.lock().unwrap().clear();
     });
     Ok(())
 }
@@ -276,7 +262,7 @@ pub fn set_saving_data_flag() {
 }
 
 #[tauri::command(async)]
-pub fn local_data_test_mode(reader: tauri::ipc::Channel<UdpDataEvent<'static>>) -> () {
+pub fn local_data_test_mode() -> () {
     let data = load_raw_bytes_from_file("fm.data");
     let data = match data {
         Ok(data) => data,
@@ -285,6 +271,10 @@ pub fn local_data_test_mode(reader: tauri::ipc::Channel<UdpDataEvent<'static>>) 
             return;
         }
     };
+    let thread_running_flag = THREAD_RUNINNG_FLAG.get_or_init(|| AtomicBool::new(true));
+    thread_running_flag.store(true, Ordering::SeqCst);
+    println!("🪵 [udp.rs:264]~ token ~ \x1b[0;32mdata\x1b[0m = {} {} {} {} {}", data.len(),data[0].len(),data[1].len(),data[2].len(),data[20].len());
+
     let _ = tauri::async_runtime::spawn(async move {
         let name_list = ["Power", "CurrentEngineRpm", "Torque"];
         let field_vec = TELEMETRY_FIELDS
@@ -292,25 +282,77 @@ pub fn local_data_test_mode(reader: tauri::ipc::Channel<UdpDataEvent<'static>>) 
             .filter(|item| name_list.contains(&item.name))
             .collect::<Vec<_>>();
 
-        for i in data {
+            // let power_list = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+            // let torque_list = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+
+            let power_list = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+            let torque_list = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        
+
+        for buffer in data {
+            println!("🪵 [udp.rs:280]~ token ~ \x1b[0;32mbuffer\x1b[0m = {}", buffer.len());
             let mut data_vec: Vec<UdpDataItem> = Vec::new();
+            let mut vv: Vec<i32> = Vec::new();//power_val,rpm_val,torque_val
 
             for item in field_vec.iter() {
-                let buf: &[u8] = &i[item.offset..item.offset + item.bytes - 1];
-                let val = String::from_utf8_lossy(&buf as &[u8]).to_string();
+                // let mut buf: Vec<u8> = Vec::new();
+                // for i in 0..item.bytes {
+                //     buf.push(buffer[item.offset + i]);
+                // }
+                // let val = read_fn_map(**item, buf);
+                // let val = nums.choose(&mut rng).unwrap().to_string();
+
+                let v: i32 = rand::random_range(0..10000);
                 data_vec.push(UdpDataItem {
                     name: item.name.to_string(),
-                    val,
+                    // val,
+                    val: v.to_string(),
                 });
+                vv.push(v);
             }
-            let _ = reader.send(UdpDataEvent::DataIn { data: &data_vec });
+            power_list.lock().unwrap().insert(vv[1], [vv[1], vv[0]].to_vec());
+            torque_list.lock().unwrap().insert(vv[1], [vv[1], vv[2]].to_vec());
+            
             sleep(Duration::from_millis(15)).await;
         }
+        power_list.lock().unwrap().clear();
+        torque_list.lock().unwrap().clear();
     });
     //    let mut temp_buf_list = TEMP_SAVING_BUFFER.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap();
     //    temp_buf_list = data;
     //    Ok(())
 }
+
+#[tauri::command(async)]
+pub fn loop_send_data(reader: tauri::ipc::Channel<UdpDataEvent2<'static>>){
+    let thread_running_flag = THREAD_RUNINNG_FLAG.get_or_init(|| AtomicBool::new(true));
+    let _ = tauri::async_runtime::spawn(async move {
+        let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        let send_data = || -> Result<(), String> {
+            
+            let res = reader.send(UdpDataEvent2::DataIn { data: &UdpDataItem2 { 
+                power: pcdata.lock().unwrap().clone().into_values().collect()
+                , torque: todata.lock().unwrap().clone().into_values().collect()} }
+            );
+            match res {
+                Ok(_) => {
+                    println!("🪵 [udp.rs:222]~ token ~ \x1b[0;32mok\x1b[0m = {}", "UdpDataEvent2 ok");
+                }
+                Err(e) => {
+                    println!("🪵 [udp.rs:222]~ token ~ \x1b[0;32merror\x1b[0m = {}", e);
+                }
+                
+            }
+            Ok(())
+        };
+        while thread_running_flag.load(Ordering::SeqCst) {
+            send_data().unwrap();
+            sleep(Duration::from_millis(500)).await;
+        }
+    });
+}
+
 
 fn save_temp_data(buf: [u8; 1500]) -> Result<(), String> {
     let start_flag = SAING_DATA.get_or_init(|| AtomicBool::new(false));
