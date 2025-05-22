@@ -468,10 +468,10 @@ fn build_chart_data(pcdata: &Arc<Mutex<BTreeMap<i32, Vec<i32>>>>, todata: &Arc<M
 }
 
 
-fn build_chart_data2(pcdata: &Arc<Mutex<Vec<Vec<i32>>>>, todata: &Arc<Mutex<Vec<Vec<i32>>>>,vv:&Vec<i32>){
-    let torque = (vv[2] as f32 * 0.73756215 ) as i32;
-    let power =  ( vv[1] as f32 / 1000.0 * 1.34102209) as i32;
+// fn build_chart_data2(pcdata: &Arc<Mutex<Vec<Vec<i32>>>>, todata: &Arc<Mutex<Vec<Vec<i32>>>>,vv:&Vec<i32>){
+//     let torque = (vv[2] as f32 * 0.73756215 ) as i32;
+//     let power =  ( vv[1] as f32 / 1000.0 * 1.34102209) as i32;
 
-    pcdata.lock().unwrap().push([vv[0], power].to_vec());
-    todata.lock().unwrap().push([vv[0], torque].to_vec());
-}
+//     pcdata.lock().unwrap().push([vv[0], power].to_vec());
+//     todata.lock().unwrap().push([vv[0], torque].to_vec());
+// }
