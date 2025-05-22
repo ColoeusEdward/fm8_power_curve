@@ -8,7 +8,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import PowerChart from "./chart";
 import { Button, Divider, Input, MessagePlugin, Statistic } from "tdesign-react";
 import { useAtom } from "jotai";
-import { configAtom } from "./store";
+import { configAtom, maxDataAtom, realTimeDataAtom } from "./store";
 import { getMsgOpt, sleep } from "./util";
 import { CloseIcon, ForzaLogoIcon, MinimizeIcon } from "./icon/svg";
 
@@ -96,8 +96,11 @@ export default memo(App);
 
 
 const MaxPart: React.FC = memo(() => {
-  const [maxPowerObj, setMaxPowerObj] = useState({ max: 0, rpm: 0 });
-  const [maxTorqueObj, setMaxTorqueObj] = useState({ max: 0, rpm: 0 });
+  // const [maxPowerObj, setMaxPowerObj] = useState({ max: 0, rpm: 0 });
+  // const [maxTorqueObj, setMaxTorqueObj] = useState({ max: 0, rpm: 0 });
+  const [maxDataItem, setMaxDataItem] = useAtom(maxDataAtom)
+  const [realTimeData, setRealTimeData] = useAtom(realTimeDataAtom)
+
 
   useEffect(() => {
 
@@ -107,19 +110,19 @@ const MaxPart: React.FC = memo(() => {
   return (
     <div className="flex pl-6 pt-2 relative">
       <div className="flex flex-col items-center">
-        <Statistic title="最大马力" value={maxPowerObj.max} unit="HP" color="red" />
-        <div className="  text-[#d54941]">at {maxPowerObj.rpm} rpm</div>
+        <Statistic title="最大马力" value={maxDataItem.power.max} unit="HP" color="red" />
+        <div className="  text-[#d54941]">at {maxDataItem.power.rpm} rpm</div>
       </div>
 
       <span className="mx-4"></span>
       <div className="flex flex-col items-center">
-        <Statistic title="最大扭矩" value={maxTorqueObj.max} unit="Nm" color="blue" />
-        <span className="   text-[#0052da] ">at {maxTorqueObj.rpm} rpm</span>
+        <Statistic title="最大扭矩" value={maxDataItem.torque.max} unit="Nm" color="blue" />
+        <span className="   text-[#0052da] ">at {maxDataItem.torque.rpm} rpm</span>
       </div>
 
 
       <span className="mx-4"></span>
-      <Statistic title="当前转速" value={82.76} unit="rpm" color="orange" />
+      <Statistic title="当前转速" value={realTimeData?.current_engine_rpm || 0} unit="rpm" color="orange" />
     </div>
   )
 })

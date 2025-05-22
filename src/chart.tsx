@@ -4,10 +4,11 @@ import { AlarmClockIcon, PauseIcon, PlayIcon, ResetIcon } from './icon/svg';
 import { Button, MessagePlugin } from 'tdesign-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke, Channel } from '@tauri-apps/api/core';
-import { configAtom } from './store';
+import { configAtom, maxDataAtom, realTimeDataAtom } from './store';
 import { useAtom } from 'jotai';
 import { getMsgOpt, isDev, sleep } from './util';
 import { tr } from 'framer-motion/client';
+import { option2 } from './util/config';
 
 const option = {
   "xAxis": {
@@ -135,6 +136,8 @@ function PowerChart() {
   let chartInstance = useRef<ECharts | null >(null);
   const [isCatching, setIsCatching] = useState(false);
   const isCatchingRef = useRef(isCatching);
+  const [maxDataItem, setMaxDataItem] = useAtom(maxDataAtom)
+  const [realTimeData, setRealTimeData] = useAtom(realTimeDataAtom)
 
   const startUdp = useCallback((forceStart?: boolean) => {
     console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
@@ -147,6 +150,21 @@ function PowerChart() {
     }
   }, [isCatching, config]);
 
+  const realTimeEvent = () => {
+    const onEvent = new Channel<RealTimeEvent>();
+      onEvent.onmessage = (message) => {
+        let dat = message.data;
+        try {
+          setRealTimeData(dat.data)
+        } catch (error) {
+          console.log("🪵 [chart.tsx:157] ~ token ~ \x1b[0;32merror\x1b[0m = ", error);
+        }
+        console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
+        // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
+        // console.log(`got download event ${message.event}`);
+      };
+      return onEvent
+  }
 
   const testStartUdp = useCallback(() => {
     const testEvent = () => {
@@ -155,10 +173,11 @@ function PowerChart() {
         let dat = message.data;
         try {
           buildData(dat.data)
+          setMaxData(dat.data)
         } catch (error) {
           console.log("🪵 [chart.tsx:157] ~ token ~ \x1b[0;32merror\x1b[0m = ", error);
         }
-        console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
+        // console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
         // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
         // console.log(`got download event ${message.event}`);
       };
@@ -171,10 +190,9 @@ function PowerChart() {
     } else if (!isCatching) {
       setIsCatching(true);
       isCatchingRef.current = true
-      // initUdp()
       // console.log("🪵 [chart.tsx:168] ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
 
-      invoke('local_data_test_mode', { config,  },);
+      invoke('local_data_test_mode', { config, realTimeEvent  : realTimeEvent() },);
       sleep(50).then(() => {
         invoke('loop_send_data', { config,reader: testEvent() },);
       })
@@ -186,22 +204,22 @@ function PowerChart() {
     invoke('set_saving_data_flag', { config },);
 
   }
+  const setMaxData = (data: UdpDataItem2) => {
+    let item:maxDataItem = { power: { max: 0, rpm: 0 }, torque: { max: 0, rpm: 0 } }
+    let plist = data.power
+    let powerValLits = plist.map((item) => item[1])
+    let pidx = powerValLits.indexOf(Math.max(...powerValLits))
+    item.power.max = powerValLits[pidx]
+    item.power.rpm = plist[pidx][0]
 
-  // const loopUpdateChart = useCallback((start?:boolean) => {
-  //   console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
-  //   if (isCatchingRef.current) {
-  //     let newOption = JSON.parse(JSON.stringify(option));
-  //     newOption.series[0].data = chartData.power;
-  //     newOption.series[1].data = chartData.torque;
-  //       console.log("🪵 [chart.tsx:187] ~ token ~ \x1b[0;32mchartInstance.current\x1b[0m = ", chartInstance.current);
-  //     if (chartInstance.current) {
-  //       chartInstance.current.setOption(newOption);
-  //       console.log("🪵 [chart.tsx:188] ~ token ~ \x1b[0;32mnewOption\x1b[0m = ", newOption);
-  //     }
-  //     sleep(500).then(() => loopUpdateChart());
-
-  //   }
-  // }, [isCatching]);
+    let tlist = data.torque
+    let torqueValLits = tlist.map((item) => item[1])
+    let tidx = torqueValLits.indexOf(Math.max(...torqueValLits))
+    item.torque.max = torqueValLits[tidx]
+    item.torque.rpm = tlist[tidx][0]
+    
+    setMaxDataItem(item)
+  }
 
   const buildData = (data: UdpDataItem2) => {
     // console.log("🪵 [chart.tsx:196] ~ token ~ \x1b[0;32mdata\x1b[0m = ", data);
@@ -211,7 +229,7 @@ function PowerChart() {
     let tlist = data.torque
     // chartData.power = plist;
     // chartData.torque = tlist
-    let newOption = JSON.parse(JSON.stringify(option));
+    let newOption = JSON.parse(JSON.stringify(option2));
     newOption.series[0].data = plist;
     newOption.series[1].data = tlist;
     if (chartInstance.current) {
@@ -225,11 +243,15 @@ function PowerChart() {
     onEvent.onmessage = (message) => {
       let dat = message.data;
       buildData(dat.data)
+      setMaxData(dat.data)
       // console.log("🪵 [chart.tsx:149] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
       // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
       // console.log(`got download event ${message.event}`);
     };
-    invoke('init_config', { config, reader: onEvent },);
+    invoke('init_config', { config, },);
+    sleep(50).then(() => {
+      invoke('loop_send_data', { config,reader: onEvent },);
+    })
   }, [isCatching, config])
 
 
@@ -275,7 +297,7 @@ function PowerChart() {
   const reset = () => {
     chartData.power = zeroData;
     chartData.torque = zeroData;
-    let newOption = JSON.parse(JSON.stringify(option));
+    let newOption = JSON.parse(JSON.stringify(option2));
     newOption.series[0].data = zeroData;
     newOption.series[1].data = zeroData;
     
@@ -289,7 +311,7 @@ function PowerChart() {
   useEffect(() => {
     // 在组件挂载后初始化 ECharts 实例
     chartInstance.current = init(chartRef.current);
-    chartInstance.current.setOption(option);
+    chartInstance.current.setOption(option2);
 
     // 在组件卸载时销毁 ECharts 实例，防止内存泄漏
     let removeListen = () => { }

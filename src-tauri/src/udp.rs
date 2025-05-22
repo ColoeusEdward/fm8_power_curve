@@ -7,8 +7,8 @@ use tauri::{Emitter};
 use tokio::time::{sleep, Duration};
 
 use crate::{
-    config::{ TELEMETRY_FIELDS},
-    enums::{self,  DownloadEvent,  UdpDataEvent2, UdpDataItem, UdpDataItem2},
+    config::TELEMETRY_FIELDS,
+    enums::{self, DownloadEvent, RealTimeDataEvent, TelemetryDataItem, UdpDataEvent2, UdpDataItem2},
     util::{is_port_available, load_raw_bytes_from_file, read_fn_map, save_raw_bytes_to_file},
 };
 
@@ -31,6 +31,7 @@ pub static TORQUE_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = On
 pub async fn init_config(
     win: tauri::Window,
     config: enums::MyState,
+    real_time_event: tauri::ipc::Channel<RealTimeDataEvent<'static>>,
 ) -> Result<(), String> {
     println!(
         "🪵 [udp.rs:7]~ token ~ \x1b[0;32mconfig\x1b[0m = {} {}",
@@ -76,7 +77,7 @@ pub async fn init_config(
         // let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
         let mut buffer = [0u8; 1500]; // Typical MTU for Ethernet
                                       // let (tx, _) = mpsc::channel::<UdpDataPayload>(1024); // Buffer size 1024
-        let name_list = ["Power", "CurrentEngineRpm", "Torque"];
+        let name_list = ["CurrentEngineRpm", "Power", "Torque"];
         let field_vec = TELEMETRY_FIELDS
             .iter()
             .filter(|item| name_list.contains(&item.name))
@@ -112,7 +113,8 @@ pub async fn init_config(
                     // win.emit("udp_data",  payload).unwrap();
 
                     // let mut data_vec: Vec<UdpDataItem> = Vec::new();
-                    let mut vv: Vec<i32> = Vec::new();//power,rpm,torque
+                    let mut vv: Vec<i32> = Vec::new();//rpm,power,,torque
+                    // let mut vv: Vec<i32> = Vec::new();//rpm,power,,torque
 
 
                     for item in field_vec.iter() {
@@ -121,31 +123,40 @@ pub async fn init_config(
                             buf.push(buffer[item.offset + i]);
                         }
                         let val = read_fn_map(**item, buf);
-                        let val:i32 = val.parse().unwrap();
+                        // let res = match val.parse::<i32>() {
+                        //     Ok(val) => val,
+                        //     Err(e) => {
+                        //         println!("Error parsing value: {} {}",val, e);
+                        //         0
+                        //     }
+                        // };
                         vv.push(val);
 
                     }
 
-                    pcdata.lock().unwrap().insert(vv[1], [vv[1], vv[0]].to_vec());
-                    todata.lock().unwrap().insert(vv[1], [vv[1], vv[2]].to_vec());
+                    pcdata.lock().unwrap().insert(vv[0], [vv[0], vv[1]].to_vec());
+                    todata.lock().unwrap().insert(vv[0], [vv[0], vv[2]].to_vec());
                     println!(
                         "🪵 [udp.rs:118]~ token ~ \x1b[0;32mdata_vec\x1b[0m = {}",
-                        vv[1]
+                        vv[0]
                     );
 
-                    // let res = reader.send(UdpDataEvent::DataIn { data: &data_vec });
-                    // match res {
-                    //     Ok(_) => {}
-                    //     Err(e) => {
-                    //         println!("Failed to send data to channel: {}", e);
-                    //         win.emit(
-                    //             "connect_fail",
-                    //             format!("Failed to send data to channel: {}", e),
-                    //         )
-                    //         .unwrap();
-                    //         break;
-                    //     }
-                    // }
+                    let res = real_time_event.send(RealTimeDataEvent::DataIn { data: &TelemetryDataItem{
+                        current_engine_rpm: Some(vv[0] as f32),
+                        ..Default::default()
+                    } });
+                    match res {
+                        Ok(_) => {}
+                        Err(e) => {
+                            println!("Failed to send data to channel: {}", e);
+                            win.emit(
+                                "connect_fail",
+                                format!("Failed to send data to channel: {}", e),
+                            )
+                            .unwrap();
+                            break;
+                        }
+                    }
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     // Timeout occurred, check the running flag and continue or exit
@@ -262,7 +273,10 @@ pub fn set_saving_data_flag() {
 }
 
 #[tauri::command(async)]
-pub fn local_data_test_mode() -> () {
+pub fn local_data_test_mode(
+    win: tauri::Window,
+    real_time_event: tauri::ipc::Channel<RealTimeDataEvent<'static>>,
+) -> () {
     let data = load_raw_bytes_from_file("fm.data");
     let data = match data {
         Ok(data) => data,
@@ -285,42 +299,64 @@ pub fn local_data_test_mode() -> () {
             // let power_list = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
             // let torque_list = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
 
-            let power_list = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
-            let torque_list = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+            let pcdata = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+            let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
         
 
         for buffer in data {
-            println!("🪵 [udp.rs:280]~ token ~ \x1b[0;32mbuffer\x1b[0m = {}", buffer.len());
-            let mut data_vec: Vec<UdpDataItem> = Vec::new();
-            let mut vv: Vec<i32> = Vec::new();//power_val,rpm_val,torque_val
+            // println!("🪵 [udp.rs:280]~ token ~ \x1b[0;32mbuffer\x1b[0m = {}", buffer.len());
+            let mut vv: Vec<i32> = Vec::new();//rpm_val,power_val,,torque_val
+
+            // let mut vv: Vec<i32> = Vec::new();//rpm,power,,torque
+
 
             for item in field_vec.iter() {
-                // let mut buf: Vec<u8> = Vec::new();
-                // for i in 0..item.bytes {
-                //     buf.push(buffer[item.offset + i]);
-                // }
-                // let val = read_fn_map(**item, buf);
-                // let val = nums.choose(&mut rng).unwrap().to_string();
+                let mut buf: Vec<u8> = Vec::new();
+                for i in 0..item.bytes {
+                    buf.push(buffer[item.offset + i]);
+                }
+                let val = read_fn_map(**item, buf);
+                // let res = match val.parse::<i32>() {
+                //     Ok(val) => val,
+                //     Err(e) => {
+                //         println!("Error parsing value: {} {}",val, e);
+                //         0
+                //     }
+                // };
+                vv.push(val);
 
-                let v: i32 = rand::random_range(0..10000);
-                data_vec.push(UdpDataItem {
-                    name: item.name.to_string(),
-                    // val,
-                    val: v.to_string(),
-                });
-                vv.push(v);
             }
-            power_list.lock().unwrap().insert(vv[1], [vv[1], vv[0]].to_vec());
-            torque_list.lock().unwrap().insert(vv[1], [vv[1], vv[2]].to_vec());
+            if vv[1] > 0 {
+                pcdata.lock().unwrap().insert(vv[0], [vv[0], vv[1]/ 1000 * 1.34102209 as i32].to_vec());
+                todata.lock().unwrap().insert(vv[0], [vv[0], vv[2] * 0.73756215  as i32].to_vec());
+            }
+            
+            println!(
+                "🪵 [udp.rs:118]~ token ~ \x1b[0;32mdata_vec\x1b[0m = {}",
+                vv[0]
+            );
+            let res = real_time_event.send(RealTimeDataEvent::DataIn { data: &TelemetryDataItem{
+                current_engine_rpm: Some(vv[0] as f32),
+                ..Default::default()
+            } });
+            match res {
+                Ok(_) => {}
+                Err(e) => {
+                    println!("Failed to send data to channel: {}", e);
+                    win.emit(
+                        "connect_fail",
+                        format!("Failed to send data to channel: {}", e),
+                    )
+                    .unwrap();
+                    break;
+                }
+            }
             
             sleep(Duration::from_millis(15)).await;
         }
-        power_list.lock().unwrap().clear();
-        torque_list.lock().unwrap().clear();
+        pcdata.lock().unwrap().clear();
+        todata.lock().unwrap().clear();
     });
-    //    let mut temp_buf_list = TEMP_SAVING_BUFFER.get_or_init(|| Mutex::new(Vec::new())).lock().unwrap();
-    //    temp_buf_list = data;
-    //    Ok(())
 }
 
 #[tauri::command(async)]

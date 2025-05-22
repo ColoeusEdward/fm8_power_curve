@@ -633,3 +633,136 @@ const configs = {
 		}
 	]
 };
+
+
+export const option2 = {
+	// Chart title
+	title: {
+			text: '发动机性能曲线 (RPM vs. 马力 & 扭矩)',
+			left: 'center'
+	},
+	// Tooltip for displaying data on hover
+	tooltip: {
+			trigger: 'axis', // Show tooltip for all series on the same X-axis point
+			axisPointer: {
+					type: 'cross' // Crosshairs for better data point identification
+			},
+			// formatter: function (params: { value: number[],seriesName: string }[]) {
+			// 		let tooltipContent = 'RPM: ' + params[0].value[0] + '<br/>';
+			// 		params.forEach(function (item) {
+			// 				if (item.seriesName === '马力') {
+			// 						tooltipContent += '马力: ' + item.value[1] + ' HP<br/>';
+			// 				} else if (item.seriesName === '扭矩') {
+			// 						tooltipContent += '扭矩: ' + item.value[1] + ' Nm<br/>';
+			// 				}
+			// 		});
+			// 		return tooltipContent;
+			// }
+	},
+	toolbox: {
+    feature: {
+      saveAsImage: {},
+    },
+  },
+	// Legend to distinguish between Horsepower and Torque lines
+	legend: {
+			data: ['马力', '扭矩'],
+			bottom: 1,
+			left: 'center'
+	},
+	// Grid settings for the chart area
+	grid: {
+			left: '5%',
+			right: '5%',
+			bottom: '10%',
+			containLabel: true // Ensure labels are fully visible
+	},
+	// X-axis (RPM)
+	xAxis: {
+			type: 'value', // Value axis for numerical RPM
+			name: '转速 (RPM)', // Axis name
+			nameLocation: 'middle',
+			nameGap: 30,
+			axisLabel: {
+					formatter: '{value} RPM'
+			},
+			splitLine: {
+					show: true // Show grid lines for X-axis
+			}
+	},
+	// First Y-axis (Horsepower)
+	yAxis: [
+			{
+					type: 'value',
+					name: '马力 (HP)', // Axis name
+					nameLocation: 'middle',
+					nameGap: 40,
+					axisLabel: {
+							formatter: '{value} HP'
+					},
+					splitLine: {
+							show: true // Show grid lines for Horsepower Y-axis
+					}
+			},
+			// Second Y-axis (Torque)
+			{
+					type: 'value',
+					name: '扭矩 (Nm)', // Axis name
+					nameLocation: 'middle',
+					nameGap: 40,
+					axisLabel: {
+							formatter: '{value} Nm'
+					},
+					splitLine: {
+							show: false // Optional: Hide grid lines for Torque Y-axis if you want to avoid clutter
+					}
+			}
+	],
+	// Series for Horsepower and Torque
+	series: [
+			{
+					name: '马力', // Corresponds to legend data
+					type: 'scatter', // Scatter plot for individual data points
+					yAxisIndex: 0, // Binds to the first Y-axis (Horsepower)
+					itemStyle: {
+						color: '#f45057' // 红色
+					},
+					symbolSize: 5, 
+					data: [
+							// Example data: [RPM, Horsepower]
+							[1000, 50],
+							[1500, 75],
+							[2000, 100],
+							[2500, 120],
+							[3000, 140],
+							[3500, 155],
+							[4000, 160],
+							[4500, 150],
+							[5000, 130]
+							// ... add your actual horsepower data here
+					]
+			},
+			{
+					name: '扭矩', // Corresponds to legend data
+					type: 'scatter', // Scatter plot for individual data points
+					yAxisIndex: 1, // Binds to the second Y-axis (Torque)
+					itemStyle: {	
+						color: '#0052d9' // 蓝色
+					},
+					symbolSize: 5, 
+					data: [
+							// Example data: [RPM, Torque]
+							[1000, 180],
+							[1500, 200],
+							[2000, 220],
+							[2500, 230],
+							[3000, 225],
+							[3500, 210],
+							[4000, 190],
+							[4500, 170],
+							[5000, 150]
+							// ... add your actual torque data here
+					]
+			}
+	]
+};

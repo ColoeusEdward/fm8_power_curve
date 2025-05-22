@@ -62,20 +62,20 @@ pub fn load_raw_bytes_from_file(filename: &str) -> std::io::Result<Vec<Vec<u8>>>
 }
 
 
-pub fn read_fn_map(item: TelemetryDataField, buf: Vec<u8>) -> String {
+pub fn read_fn_map(item: TelemetryDataField, buf: Vec<u8>) -> i32 {
   if item.type_name == "F32" {
-      return f32::from_le_bytes(buf.try_into().unwrap()).to_string();
+      return f32::from_le_bytes(buf.try_into().unwrap()) as i32;
   } else if item.type_name == "S32" {
-      return i32::from_le_bytes(buf.try_into().unwrap()).to_string();
+      return  i32::from_le_bytes(buf.try_into().unwrap());
   } else if item.type_name == "U32" {
-      return u32::from_le_bytes(buf.try_into().unwrap()).to_string();
+      return u32::from_le_bytes(buf.try_into().unwrap()) as i32;
   } else if item.type_name == "U16" {
-      return u16::from_le_bytes(buf.try_into().unwrap()).to_string();
+      return u16::from_le_bytes(buf.try_into().unwrap())  as i32;
   } else if item.type_name == "U8" {
-      return u8::from_le_bytes(buf.try_into().unwrap()).to_string();
+      return u8::from_le_bytes(buf.try_into().unwrap())   as i32;
   } else if item.type_name == "S8" {
-      return i8::from_le_bytes(buf.try_into().unwrap()).to_string();
+      return i8::from_le_bytes(buf.try_into().unwrap())   as i32;
   } else {
-      return "".to_string();
+      return 0 as i32;
   }
 }
