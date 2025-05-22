@@ -17,11 +17,11 @@ pub static THREAD_RUNINNG_FLAG: OnceLock<AtomicBool> = OnceLock::new();
 pub static SAING_DATA: OnceLock<AtomicBool> = OnceLock::new();
 pub static TEMP_SAVING_BUFFER: OnceLock<Mutex<Vec<Vec<u8>>>> = OnceLock::new();
 
-pub static POWER_CHART_DATA2: OnceLock<Arc<Mutex<Vec<Vec<i32>>>>> = OnceLock::new();
-pub static TORQUE_CHART_DATA2: OnceLock<Arc<Mutex<Vec<Vec<i32>>>>> = OnceLock::new();
+// pub static POWER_CHART_DATA2: OnceLock<Arc<Mutex<Vec<Vec<i32>>>>> = OnceLock::new();
+// pub static TORQUE_CHART_DATA2: OnceLock<Arc<Mutex<Vec<Vec<i32>>>>> = OnceLock::new();
 
-// pub static POWER_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = OnceLock::new();
-// pub static TORQUE_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = OnceLock::new();
+pub static POWER_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = OnceLock::new();
+pub static TORQUE_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = OnceLock::new();
 
 // pub static READ: OnceLock<tauri::ipc::Channel<UdpDataEvent>> = OnceLock::new();
 // pub static READ: OnceLock<Box<dyn tauri::ipc::Channel<UdpDataEvent>>> = OnceLock::new();
@@ -83,10 +83,10 @@ pub async fn init_config(
             .iter()
             .filter(|item| name_list.contains(&item.name))
             .collect::<Vec<_>>();
-        // let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
-        // let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
-        let pcdata =  POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
-        let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+        let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        // let pcdata =  POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+        // let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
         while thread_running_flag.load(Ordering::SeqCst) {
             
             // Use a non-blocking or timed receive in a real app to allow checking the flag
@@ -136,7 +136,7 @@ pub async fn init_config(
                         vv.push(val);
                     }
                     if vv[1] > 0 {
-                        build_chart_data2(&pcdata, &todata, &vv);
+                        build_chart_data(&pcdata, &todata, &vv);
                     }
                     
                     // pcdata.lock().unwrap().insert(vv[0], [vv[0], vv[1]].to_vec());
@@ -301,11 +301,11 @@ pub fn local_data_test_mode(
             .filter(|item| name_list.contains(&item.name))
             .collect::<Vec<_>>();
 
-            // let pcdata = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
-            // let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+            let pcdata = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+            let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
 
-            let pcdata = POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
-            let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+            // let pcdata = POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+            // let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
         
 
         for buffer in data {
@@ -332,7 +332,7 @@ pub fn local_data_test_mode(
 
             }
                 if vv[1] > 0 {
-                build_chart_data2(&pcdata, &todata, &vv);
+                build_chart_data(&pcdata, &todata, &vv);
 
                 // pcdata.lock().unwrap().insert(vv[0], [vv[0], vv[1]/ 1000 * 1.34102209 as i32].to_vec());
                 // todata.lock().unwrap().insert(vv[0], [vv[0], vv[2] * 0.73756215  as i32].to_vec());
@@ -370,18 +370,18 @@ pub fn local_data_test_mode(
 pub fn loop_send_data(reader: tauri::ipc::Channel<UdpDataEvent2<'static>>){
     let thread_running_flag = THREAD_RUNINNG_FLAG.get_or_init(|| AtomicBool::new(true));
     let _ = tauri::async_runtime::spawn(async move {
-        // let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
-        // let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
 
-        let pcdata =  POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
-        let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+        // let pcdata =  POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+        // let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
         let send_data = || -> Result<(), String> {
             
             let res = reader.send(UdpDataEvent2::DataIn { data: &UdpDataItem2 { 
-                // power: pcdata.lock().unwrap().clone().into_values().collect()
-                // , torque: todata.lock().unwrap().clone().into_values().collect()} }
-                power: pcdata.lock().unwrap().clone()
-                , torque: todata.lock().unwrap().clone()} }
+                power: pcdata.lock().unwrap().clone().into_values().collect()
+                , torque: todata.lock().unwrap().clone().into_values().collect()} }
+                // power: pcdata.lock().unwrap().clone()
+                // , torque: todata.lock().unwrap().clone()} }
             );
             match res {
                 Ok(_) => {

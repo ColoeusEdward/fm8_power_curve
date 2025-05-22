@@ -729,7 +729,7 @@ export const option2 = {
 					},
 					symbolSize: 5, 
 					large: true, // 启用大数据量优化
-        	largeThreshold: 1000, // 当数据量超过2000时，启用优化模式
+        	largeThreshold: 300, // 当数据量超过2000时，启用优化模式
 					data: [
 							// Example data: [RPM, Horsepower]
 							// [1000, 50],
@@ -753,7 +753,7 @@ export const option2 = {
 					},
 					symbolSize: 5, 
 					large: true, // 启用大数据量优化
-        	largeThreshold: 1000, // 当数据量超过2000时，启用优化模式
+        	largeThreshold: 300, // 当数据量超过2000时，启用优化模式
 					data: [
 							// Example data: [RPM, Torque]
 							// [1000, 180],
