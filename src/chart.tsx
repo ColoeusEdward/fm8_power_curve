@@ -129,6 +129,7 @@ const chartData = {
   power: [] as number[][],
   torque: [] as number[][]
 }
+let initCount = 0
 function PowerChart() {
   const chartRef = useRef(null);
   const zeroData: [number, number][] = []
@@ -160,7 +161,7 @@ function PowerChart() {
         } catch (error) {
           console.log("🪵 [chart.tsx:157] ~ token ~ \x1b[0;32merror\x1b[0m = ", error);
         }
-        console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
+        // console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
         // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
         // console.log(`got download event ${message.event}`);
       };
@@ -261,6 +262,8 @@ function PowerChart() {
   };
 
   const addListen = async () => {
+    if(initCount > 0) return
+    initCount++;
     const faillistenPromise = listen('connect_fail', (event) => {
       console.log('err:', event.payload);
       MessagePlugin.error({ content: `error: ${event.payload}`, ...getMsgOpt(0), closeBtn: true });
@@ -279,12 +282,15 @@ function PowerChart() {
     })
 
     const unlisten = await Promise.all([faillistenPromise, connectStopPromise]);
-    listenHideCode(() => {
-      setHideBtnShow(true)
+    console.log(`listen add`,);
+    let removefn = listenHideCode(() => {
+      console.log(`bingo`,);
+      setHideBtnShow(e=>!e)
     })
-    // initUdp();
+    
     return () => {
       unlisten.forEach((unlisten) => unlisten());
+      removefn()
     };
   }
 
@@ -305,7 +311,7 @@ function PowerChart() {
     newOption.series[0].data = zeroData;
     newOption.series[1].data = zeroData;
     
-      console.log("🪵 [chart.tsx:281] ~ token ~ \x1b[0;32mchartInstance\x1b[0m = ", chartInstance.current);
+      // console.log("🪵 [chart.tsx:281] ~ token ~ \x1b[0;32mchartInstance\x1b[0m = ", chartInstance.current);
       if (chartInstance.current) {
       chartInstance.current.setOption(newOption);
     }
@@ -319,13 +325,13 @@ function PowerChart() {
 
     // 在组件卸载时销毁 ECharts 实例，防止内存泄漏
     let removeListen = () => { }
-    addListen().then(r => removeListen = r);
+    addListen().then(r => r && (removeListen = r));
     
     return () => {
       if (chartInstance.current) {
         chartInstance.current.dispose();
       }
-      removeListen();
+      removeListen()
     };
   }, []); // 空依赖数组确保 effect 只在挂载和卸载时执行一次
 

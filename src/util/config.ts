@@ -728,6 +728,8 @@ export const option2 = {
 						color: '#f45057' // 红色
 					},
 					symbolSize: 5, 
+					large: true, // 启用大数据量优化
+        	largeThreshold: 1000, // 当数据量超过2000时，启用优化模式
 					data: [
 							// Example data: [RPM, Horsepower]
 							// [1000, 50],
@@ -750,6 +752,8 @@ export const option2 = {
 						color: '#0052d9' // 蓝色
 					},
 					symbolSize: 5, 
+					large: true, // 启用大数据量优化
+        	largeThreshold: 1000, // 当数据量超过2000时，启用优化模式
 					data: [
 							// Example data: [RPM, Torque]
 							// [1000, 180],

@@ -19,7 +19,7 @@ export const listenHideCode = (func: () => void) => {
   const targetSequence = '78787788'; // The sequence you're looking for
   const sequenceMaxLength = targetSequence.length; // Max length to keep our `pressedKeys` manageable
 
-  let handle = document.addEventListener('keydown', (event) => {
+  let handle = (event: KeyboardEvent) => {
     const pressedKey = event.key; // Get the key that was pressed
 
     // We only care about digit keys for this example
@@ -46,5 +46,11 @@ export const listenHideCode = (func: () => void) => {
       pressedKeys = '';
     }
 
-  });
+  }
+
+  document.addEventListener('keydown', handle);
+
+  return () => {
+    document.removeEventListener('keydown', handle);
+  }
 }

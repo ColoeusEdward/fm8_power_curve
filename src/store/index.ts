@@ -8,4 +8,4 @@ export const maxDataAtom = atom<maxDataItem>({ power: { max: 0, rpm: 0 }, torque
 
 export const realTimeDataAtom = atom<TelemetryDataItem>()
 
-export const hideBtnShowAtom = atom(false)
+export const hideBtnShowAtom = atomWithStorage('hideBtnShowAtom',false)
