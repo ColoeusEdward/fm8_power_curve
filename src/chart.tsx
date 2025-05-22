@@ -4,9 +4,9 @@ import { AlarmClockIcon, PauseIcon, PlayIcon, ResetIcon } from './icon/svg';
 import { Button, MessagePlugin } from 'tdesign-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke, Channel } from '@tauri-apps/api/core';
-import { configAtom, maxDataAtom, realTimeDataAtom } from './store';
+import { configAtom, hideBtnShowAtom, maxDataAtom, realTimeDataAtom } from './store';
 import { useAtom } from 'jotai';
-import { getMsgOpt, isDev, sleep } from './util';
+import { getMsgOpt, isDev, listenHideCode, sleep } from './util';
 import { tr } from 'framer-motion/client';
 import { option2 } from './util/config';
 
@@ -138,6 +138,7 @@ function PowerChart() {
   const isCatchingRef = useRef(isCatching);
   const [maxDataItem, setMaxDataItem] = useAtom(maxDataAtom)
   const [realTimeData, setRealTimeData] = useAtom(realTimeDataAtom)
+  const [hideBtnShow, setHideBtnShow] = useAtom(hideBtnShowAtom)
 
   const startUdp = useCallback((forceStart?: boolean) => {
     console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
@@ -278,6 +279,9 @@ function PowerChart() {
     })
 
     const unlisten = await Promise.all([faillistenPromise, connectStopPromise]);
+    listenHideCode(() => {
+      setHideBtnShow(true)
+    })
     // initUdp();
     return () => {
       unlisten.forEach((unlisten) => unlisten());
@@ -316,9 +320,7 @@ function PowerChart() {
     // 在组件卸载时销毁 ECharts 实例，防止内存泄漏
     let removeListen = () => { }
     addListen().then(r => removeListen = r);
-    // sleep(5000).then(() => {
-    //   initUdp();
-    // })
+    
     return () => {
       if (chartInstance.current) {
         chartInstance.current.dispose();
@@ -348,7 +350,7 @@ function PowerChart() {
       </Button>
       <span className='mr-8'></span>
       {
-        isDev() && [
+        hideBtnShow && [
           <Button theme={'primary'}
             // disabled={!isCatching}
             variant="base" title='save file' className='' size='large' onClick={() => { saveLoaclUdpData() }} >

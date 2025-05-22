@@ -7,3 +7,5 @@ export const configAtom = atomWithStorage<typeof conf>('config', {ip:'127.0.0.1'
 export const maxDataAtom = atom<maxDataItem>({ power: { max: 0, rpm: 0 }, torque: { max: 0, rpm: 0 } })
 
 export const realTimeDataAtom = atom<TelemetryDataItem>()
+
+export const hideBtnShowAtom = atom(false)

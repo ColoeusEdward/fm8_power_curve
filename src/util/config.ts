@@ -637,10 +637,10 @@ const configs = {
 
 export const option2 = {
 	// Chart title
-	title: {
-			text: '发动机性能曲线 (RPM vs. 马力 & 扭矩)',
-			left: 'center'
-	},
+	// title: {
+	// 		text: '发动机性能曲线 (RPM vs. 马力 & 扭矩)',
+	// 		left: 'center'
+	// },
 	// Tooltip for displaying data on hover
 	tooltip: {
 			trigger: 'axis', // Show tooltip for all series on the same X-axis point
@@ -667,8 +667,8 @@ export const option2 = {
 	// Legend to distinguish between Horsepower and Torque lines
 	legend: {
 			data: ['马力', '扭矩'],
-			bottom: 1,
-			left: 'center'
+			top: 2,
+			right: 'center'
 	},
 	// Grid settings for the chart area
 	grid: {
