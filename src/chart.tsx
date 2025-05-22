@@ -168,23 +168,25 @@ function PowerChart() {
       return onEvent
   }
 
+ const testEvent = () => {
+    const onEvent = new Channel<UdpEvent2>();
+    onEvent.onmessage = (message) => {
+      let dat = message.data;
+      try {
+        buildData(dat.data)
+        setMaxData(dat.data)
+      } catch (error) {
+        console.log("🪵 [chart.tsx:157] ~ token ~ \x1b[0;32merror\x1b[0m = ", error);
+      }
+      // console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
+      // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
+      // console.log(`got download event ${message.event}`);
+    };
+    return onEvent
+  }
+
   const testStartUdp = useCallback(() => {
-    const testEvent = () => {
-      const onEvent = new Channel<UdpEvent2>();
-      onEvent.onmessage = (message) => {
-        let dat = message.data;
-        try {
-          buildData(dat.data)
-          setMaxData(dat.data)
-        } catch (error) {
-          console.log("🪵 [chart.tsx:157] ~ token ~ \x1b[0;32merror\x1b[0m = ", error);
-        }
-        // console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
-        // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
-        // console.log(`got download event ${message.event}`);
-      };
-      return onEvent
-    }
+    
     if (isCatching) {
       setIsCatching(false);
       isCatchingRef.current = false
@@ -207,6 +209,7 @@ function PowerChart() {
 
   }
   const setMaxData = (data: UdpDataItem2) => {
+    if(data.power.length === 0 || data.torque.length === 0) return
     let item:maxDataItem = { power: { max: 0, rpm: 0 }, torque: { max: 0, rpm: 0 } }
     let plist = data.power
     let powerValLits = plist.map((item) => item[1])
@@ -250,9 +253,9 @@ function PowerChart() {
       // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
       // console.log(`got download event ${message.event}`);
     };
-    invoke('init_config', { config, },);
+    invoke('init_config', { config, realTimeEvent:realTimeEvent()},);
     sleep(50).then(() => {
-      invoke('loop_send_data', { config,reader: onEvent },);
+      invoke('loop_send_data', { config,reader: testEvent()  },);
     })
   }, [isCatching, config])
 
