@@ -653,7 +653,7 @@ export const option2 = {
 			// 				if (item.seriesName === '马力') {
 			// 						tooltipContent += '马力: ' + item.value[1] + ' HP<br/>';
 			// 				} else if (item.seriesName === '扭矩') {
-			// 						tooltipContent += '扭矩: ' + item.value[1] + ' Nm<br/>';
+			// 						tooltipContent += '扭矩: ' + item.value[1] + ' lbf·ft<br/>';
 			// 				}
 			// 		});
 			// 		return tooltipContent;
@@ -707,11 +707,11 @@ export const option2 = {
 			// Second Y-axis (Torque)
 			{
 					type: 'value',
-					name: '扭矩 (Nm)', // Axis name
+					name: '扭矩 (lbf·ft)', // Axis name
 					nameLocation: 'middle',
 					nameGap: 40,
 					axisLabel: {
-							formatter: '{value} Nm'
+							formatter: '{value} lbf·ft'
 					},
 					splitLine: {
 							show: false // Optional: Hide grid lines for Torque Y-axis if you want to avoid clutter

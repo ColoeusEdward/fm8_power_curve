@@ -116,7 +116,7 @@ const MaxPart: React.FC = memo(() => {
 
       <span className="mx-4"></span>
       <div className="flex flex-col items-center">
-        <Statistic title="最大扭矩" value={maxDataItem.torque.max} unit="Nm" color="blue" />
+        <Statistic title="最大扭矩" value={maxDataItem.torque.max} unit="lbf·ft" color="blue" />
         <span className="   text-[#0052da] ">at {maxDataItem.torque.rpm} rpm</span>
       </div>
 
