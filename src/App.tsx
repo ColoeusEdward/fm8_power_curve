@@ -85,7 +85,7 @@ function App() {
   // },[windowSize])
 
   return (
-    <main className="w-full " style={{ height:windowSize ? windowSize.innerHeight+'px' : '720px' }}>
+    <main className="w-full overflow-hidden" style={{ height:windowSize ? windowSize.innerHeight+'px' : '720px' }}>
       
       <div data-tauri-drag-region className=" h-8 w-full bg-gray-100 relative z-50 flex items-center">
         <span className={'ml-2'}><ForzaLogoIcon size={40} /></span>
