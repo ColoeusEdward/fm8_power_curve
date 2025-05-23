@@ -727,7 +727,7 @@ export const option2 = {
 					itemStyle: {
 						color: '#f45057' // 红色
 					},
-					symbolSize: 3, 
+					symbolSize: 4, 
 					large: true, // 启用大数据量优化
         	largeThreshold: 300, // 当数据量超过2000时，启用优化模式
 					data: [
@@ -751,7 +751,7 @@ export const option2 = {
 					itemStyle: {	
 						color: '#0052d9' // 蓝色
 					},
-					symbolSize: 3, 
+					symbolSize: 4, 
 					large: true, // 启用大数据量优化
         	largeThreshold: 300, // 当数据量超过2000时，启用优化模式
 					data: [

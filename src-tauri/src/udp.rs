@@ -249,7 +249,7 @@ pub fn set_saving_data_flag() {
     let start_flag = SAING_DATA.get_or_init(|| AtomicBool::new(false));
     start_flag.store(true, Ordering::SeqCst);
     let _ = tauri::async_runtime::spawn(async move {
-        sleep(Duration::from_secs(8)).await;
+        sleep(Duration::from_secs(18)).await;
         let start_flag = SAING_DATA.get_or_init(|| AtomicBool::new(false));
         start_flag.store(false, Ordering::SeqCst);
         sleep(Duration::from_millis(10)).await;

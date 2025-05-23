@@ -52,5 +52,6 @@ export const listenHideCode = (func: () => void) => {
 
   return () => {
     document.removeEventListener('keydown', handle);
+    // console.log("🪵 [index.ts:54] ~ token ~ \x1b[0;32mkeydown\x1b[0m = ", 'keydown监听移除');
   }
 }

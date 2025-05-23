@@ -1,10 +1,10 @@
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { ECharts, init } from 'echarts';
-import { AlarmClockIcon, PauseIcon, PlayIcon, ResetIcon } from './icon/svg';
+import { AlarmClockIcon, PauseIcon, PlayIcon, RecordIcon, ResetIcon } from './icon/svg';
 import { Button, MessagePlugin } from 'tdesign-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke, Channel } from '@tauri-apps/api/core';
-import { configAtom, hideBtnShowAtom, maxDataAtom, realTimeDataAtom } from './store';
+import { configAtom, hideBtnShowAtom, maxDataAtom, realTimeDataAtom, windowSizeAtom } from './store';
 import { useAtom } from 'jotai';
 import { getMsgOpt, isDev, listenHideCode, sleep } from './util';
 import { tr } from 'framer-motion/client';
@@ -140,6 +140,8 @@ function PowerChart() {
   const [maxDataItem, setMaxDataItem] = useAtom(maxDataAtom)
   const [realTimeData, setRealTimeData] = useAtom(realTimeDataAtom)
   const [hideBtnShow, setHideBtnShow] = useAtom(hideBtnShowAtom)
+  const [chartHeight, setChartHeight] = useState(580)
+  const [windowSize, setWindowSize] = useAtom(windowSizeAtom)
 
   const startUdp = useCallback((forceStart?: boolean) => {
     console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
@@ -264,9 +266,8 @@ function PowerChart() {
     invoke('stop_udp', { config },);
   };
 
-  const addListen = async () => {
-    if(initCount > 0) return
-    initCount++;
+  const addListen =  () => {
+  
     const faillistenPromise = listen('connect_fail', (event) => {
       console.log('err:', event.payload);
       MessagePlugin.error({ content: `error: ${event.payload}`, ...getMsgOpt(0), closeBtn: true });
@@ -284,7 +285,7 @@ function PowerChart() {
       console.log('info:', event.payload);
     })
 
-    const unlisten = await Promise.all([faillistenPromise, connectStopPromise]);
+    const unlisten = Promise.all([faillistenPromise, connectStopPromise]);
     console.log(`listen add`,);
     let removefn = listenHideCode(() => {
       console.log(`bingo`,);
@@ -292,7 +293,9 @@ function PowerChart() {
     })
     
     return () => {
-      unlisten.forEach((unlisten) => unlisten());
+      unlisten.then((list) => {
+        list.forEach((unlisten) => unlisten());
+      })
       removefn()
     };
   }
@@ -320,15 +323,17 @@ function PowerChart() {
     }
   }
 
+  
+
 
   useEffect(() => {
+
     // 在组件挂载后初始化 ECharts 实例
     chartInstance.current = init(chartRef.current);
     chartInstance.current.setOption(option2);
 
     // 在组件卸载时销毁 ECharts 实例，防止内存泄漏
-    let removeListen = () => { }
-    addListen().then(r => r && (removeListen = r));
+    let removeListen = addListen()
     
     return () => {
       if (chartInstance.current) {
@@ -336,7 +341,7 @@ function PowerChart() {
       }
       removeListen()
     };
-  }, []); // 空依赖数组确保 effect 只在挂载和卸载时执行一次
+  }, []); 
 
   useEffect(() => {
     
@@ -346,8 +351,17 @@ function PowerChart() {
     restartUdp()
   }, [config]);
 
+  useEffect(() => {
+    if(windowSize){
+      setChartHeight(windowSize?.innerHeight - 140)
+      sleep(15).then(() => {
+        chartInstance.current?.resize()
+      })
+    }
+  }, [windowSize])
+
   return <div className='w-full h-full'>
-    <div ref={chartRef} className='w-full h-[580px]' style={{}}></div>
+    <div ref={chartRef} className='w-full ' style={{height:chartHeight+'px'}}></div>
     <div className='flex items-center justify-center pt-8'>
 
       <Button theme={isCatching ? "warning" : 'success'} variant="base" title='开始记录' className='' size='large' onClick={() => { startUdp() }} >
@@ -362,14 +376,14 @@ function PowerChart() {
         hideBtnShow && [
           <Button theme={'primary'}
             // disabled={!isCatching}
-            variant="base" title='save file' className='' size='large' onClick={() => { saveLoaclUdpData() }} >
+            variant="base" title='save record file' className='' size='large' onClick={() => { saveLoaclUdpData() }} >
             {/* {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}test */}
-            <AlarmClockIcon size={36} />
+            <RecordIcon size={26} />
           </Button>,
           <span className='mr-8'></span>,
           <Button theme={isCatching ? "warning" : 'success'} variant="base" title='test开始记录' className='' size='large' onClick={() => { testStartUdp() }} >
             {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}
-            <span>test local</span>
+            <span className=' leading-8'>test local data</span>
           </Button>,
           <span className='mr-8'></span>,
 
