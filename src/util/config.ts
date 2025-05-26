@@ -647,6 +647,7 @@ export const option2 = {
 			axisPointer: {
 					type: 'cross' // Crosshairs for better data point identification
 			},
+			// enterable: true // 允许鼠标进入tooltip区域
 			// formatter: function (params: { value: number[],seriesName: string }[]) {
 			// 		let tooltipContent = 'RPM: ' + params[0].value[0] + '<br/>';
 			// 		params.forEach(function (item) {

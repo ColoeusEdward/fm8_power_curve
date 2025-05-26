@@ -1,8 +1,9 @@
 use std::{
-    collections::BTreeMap, net::UdpSocket, sync::{
+    collections::BTreeMap, fs, io, net::UdpSocket, sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Mutex, OnceLock
     }
 };
+use chrono::Local;
 use tauri::{Emitter};
 use tokio::time::{sleep, Duration};
 
@@ -38,6 +39,7 @@ pub async fn init_config(
         "🪵 [udp.rs:7]~ token ~ \x1b[0;32mconfig\x1b[0m = {} {}",
         config.ip, config.port
     );
+    get_local_data_list().unwrap();
     // READ.set(reader);
     let is_start = ISSTART.get_or_init(|| AtomicUsize::new(0));
 
@@ -186,6 +188,7 @@ pub async fn init_config(
         println!("UDP listener thread stopped.");
         is_start.store(0, std::sync::atomic::Ordering::SeqCst);
         thread_running_flag.store(false, Ordering::SeqCst);
+        save_data_to_file();
         win.emit("connect_stop", format!("UDP listener thread stopped: "))
             .unwrap();
         pcdata.lock().unwrap().clear();
@@ -198,6 +201,14 @@ pub async fn init_config(
 pub fn stop_udp(_win: tauri::Window) {
     let thread_running_flag = THREAD_RUNINNG_FLAG.get_or_init(|| AtomicBool::new(false));
     thread_running_flag.store(false, Ordering::SeqCst);
+}
+
+#[tauri::command]
+pub fn reset_data(_win: tauri::Window) {
+    let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+    let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+    pcdata.lock().unwrap().clear();
+    todata.lock().unwrap().clear();
 }
 
 #[tauri::command(async)]
@@ -245,13 +256,18 @@ pub fn fuck_channel(
 }
 
 #[tauri::command]
-pub fn set_saving_data_flag() {
+pub fn set_saving_data_flag(is_open: bool) {
     let start_flag = SAING_DATA.get_or_init(|| AtomicBool::new(false));
-    start_flag.store(true, Ordering::SeqCst);
+    start_flag.store(is_open, Ordering::SeqCst);
+}
+
+fn save_data_to_file(){
+    let start_flag = SAING_DATA.get_or_init(|| AtomicBool::new(false));
+    if !start_flag.load(Ordering::SeqCst) {
+        return;
+    }
     let _ = tauri::async_runtime::spawn(async move {
-        sleep(Duration::from_secs(18)).await;
-        let start_flag = SAING_DATA.get_or_init(|| AtomicBool::new(false));
-        start_flag.store(false, Ordering::SeqCst);
+        // start_flag.store(false, Ordering::SeqCst);
         sleep(Duration::from_millis(10)).await;
         let temp_buf_list = TEMP_SAVING_BUFFER
             .get_or_init(|| Mutex::new(Vec::new()))
@@ -263,8 +279,11 @@ pub fn set_saving_data_flag() {
                 return;
             }
         };
-        // temp_buf_list.push([123, 110].to_vec());
-        let save_res = save_raw_bytes_to_file(&*temp_buf_list, "fm.data");
+        //date time string yyyyMMdd_hhmmss
+        let now = Local::now();
+        let date_time_string = now.format("%Y%m%d_%H%M%S").to_string();
+        let name = format!("fm_{}.data", date_time_string);
+        let save_res = save_raw_bytes_to_file(&*temp_buf_list, &name);
         match save_res {
             Ok(_) => {
                 println!("🪵 [udp.rs:222]~ token ~ \x1b[0;32mok\x1b[0m = {}", "ok");
@@ -282,7 +301,12 @@ pub fn local_data_test_mode(
     win: tauri::Window,
     real_time_event: tauri::ipc::Channel<RealTimeDataEvent<'static>>,
 ) -> () {
-    let data = load_raw_bytes_from_file("fm.data");
+    let name_list = get_local_data_list().unwrap();
+    let name = match name_list.get(0){
+        Some(first_element) => first_element.to_string(),
+        None => "fm.data".to_string(),
+    };
+    let data = load_raw_bytes_from_file(&name);
     let data = match data {
         Ok(data) => data,
         Err(e) => {
@@ -467,6 +491,25 @@ fn build_chart_data(pcdata: &Arc<Mutex<BTreeMap<i32, Vec<i32>>>>, todata: &Arc<M
     } // todata_guard 在这里离开作用域并释放锁
 }
 
+
+fn get_local_data_list() -> Result<Vec<String>, io::Error> {
+    let mut name_list:Vec<String> = Vec::new();
+    for entry in fs::read_dir(".")? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if path.is_file() {
+            if let Some(file_name) = path.file_name() {
+                if let Some(name_str) = file_name.to_str() {
+                    if name_str.contains("fm")  && name_str.contains(".data") {
+                        name_list.push(name_str.to_string());
+                    }
+                }
+            }
+        }
+    }
+    Ok(name_list)
+}
 
 // fn build_chart_data2(pcdata: &Arc<Mutex<Vec<Vec<i32>>>>, todata: &Arc<Mutex<Vec<Vec<i32>>>>,vv:&Vec<i32>){
 //     let torque = (vv[2] as f32 * 0.73756215 ) as i32;

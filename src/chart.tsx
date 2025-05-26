@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { ECharts, init } from 'echarts';
 import { AlarmClockIcon, PauseIcon, PlayIcon, RecordIcon, ResetIcon } from './icon/svg';
-import { Button, MessagePlugin } from 'tdesign-react';
+import { Button, MessagePlugin, Switch } from 'tdesign-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke, Channel } from '@tauri-apps/api/core';
 import { configAtom, hideBtnShowAtom, maxDataAtom, realTimeDataAtom, windowSizeAtom } from './store';
@@ -134,7 +134,7 @@ function PowerChart() {
   const chartRef = useRef(null);
   const zeroData: [number, number][] = []
   const [config, setConfig] = useAtom(configAtom)
-  let chartInstance = useRef<ECharts | null >(null);
+  let chartInstance = useRef<ECharts | null>(null);
   const [isCatching, setIsCatching] = useState(false);
   const isCatchingRef = useRef(isCatching);
   const [maxDataItem, setMaxDataItem] = useAtom(maxDataAtom)
@@ -142,6 +142,8 @@ function PowerChart() {
   const [hideBtnShow, setHideBtnShow] = useAtom(hideBtnShowAtom)
   const [chartHeight, setChartHeight] = useState(580)
   const [windowSize, setWindowSize] = useAtom(windowSizeAtom)
+  const [isSaveing, setIsSaveing] = useState(false)
+  const [currentActiveDataIndex, setCurrentActiveDataIndex] = useState<number>(-1);
 
   const startUdp = useCallback((forceStart?: boolean) => {
     console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
@@ -156,21 +158,21 @@ function PowerChart() {
 
   const realTimeEvent = () => {
     const onEvent = new Channel<RealTimeEvent>();
-      onEvent.onmessage = (message) => {
-        let dat = message.data;
-        try {
-          setRealTimeData(dat.data)
-        } catch (error) {
-          console.log("🪵 [chart.tsx:157] ~ token ~ \x1b[0;32merror\x1b[0m = ", error);
-        }
-        // console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
-        // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
-        // console.log(`got download event ${message.event}`);
-      };
-      return onEvent
+    onEvent.onmessage = (message) => {
+      let dat = message.data;
+      try {
+        setRealTimeData(dat.data)
+      } catch (error) {
+        console.log("🪵 [chart.tsx:157] ~ token ~ \x1b[0;32merror\x1b[0m = ", error);
+      }
+      // console.log("🪵 [chart.tsx:155] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
+      // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
+      // console.log(`got download event ${message.event}`);
+    };
+    return onEvent
   }
 
- const testEvent = () => {
+  const testEvent = () => {
     const onEvent = new Channel<UdpEvent2>();
     onEvent.onmessage = (message) => {
       let dat = message.data;
@@ -188,7 +190,7 @@ function PowerChart() {
   }
 
   const testStartUdp = useCallback(() => {
-    
+
     if (isCatching) {
       setIsCatching(false);
       isCatchingRef.current = false
@@ -198,21 +200,21 @@ function PowerChart() {
       isCatchingRef.current = true
       // console.log("🪵 [chart.tsx:168] ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
 
-      invoke('local_data_test_mode', { config, realTimeEvent  : realTimeEvent() },);
+      invoke('local_data_test_mode', { config, realTimeEvent: realTimeEvent() },);
       sleep(50).then(() => {
-        invoke('loop_send_data', { config,reader: testEvent() },);
+        invoke('loop_send_data', { config, reader: testEvent() },);
       })
     }
 
   }, [isCatching, config]);
 
-  const saveLoaclUdpData = () => {
-    invoke('set_saving_data_flag', { config },);
-
+  const saveLoaclUdpData = (val:boolean) => {
+    invoke('set_saving_data_flag', { config,isOpen:val },);
+    setIsSaveing(val)
   }
   const setMaxData = (data: UdpDataItem2) => {
-    if(data.power.length === 0 || data.torque.length === 0) return
-    let item:maxDataItem = { power: { max: 0, rpm: 0 }, torque: { max: 0, rpm: 0 } }
+    if (data.power.length === 0 || data.torque.length === 0) return
+    let item: maxDataItem = { power: { max: 0, rpm: 0 }, torque: { max: 0, rpm: 0 } }
     let plist = data.power
     let powerValLits = plist.map((item) => item[1])
     let pidx = powerValLits.indexOf(Math.max(...powerValLits))
@@ -224,7 +226,7 @@ function PowerChart() {
     let tidx = torqueValLits.indexOf(Math.max(...torqueValLits))
     item.torque.max = torqueValLits[tidx]
     item.torque.rpm = tlist[tidx][0]
-    
+
     setMaxDataItem(item)
   }
 
@@ -255,9 +257,9 @@ function PowerChart() {
       // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
       // console.log(`got download event ${message.event}`);
     };
-    invoke('init_config', { config, realTimeEvent:realTimeEvent()},);
+    invoke('init_config', { config, realTimeEvent: realTimeEvent() },);
     sleep(50).then(() => {
-      invoke('loop_send_data', { config,reader: testEvent()  },);
+      invoke('loop_send_data', { config, reader: testEvent() },);
     })
   }, [isCatching, config])
 
@@ -266,8 +268,8 @@ function PowerChart() {
     invoke('stop_udp', { config },);
   };
 
-  const addListen =  () => {
-  
+  const addListen = () => {
+
     const faillistenPromise = listen('connect_fail', (event) => {
       console.log('err:', event.payload);
       MessagePlugin.error({ content: `error: ${event.payload}`, ...getMsgOpt(0), closeBtn: true });
@@ -289,9 +291,9 @@ function PowerChart() {
     console.log(`listen add`,);
     let removefn = listenHideCode(() => {
       console.log(`bingo`,);
-      setHideBtnShow(e=>!e)
+      setHideBtnShow(e => !e)
     })
-    
+
     return () => {
       unlisten.then((list) => {
         list.forEach((unlisten) => unlisten());
@@ -316,43 +318,82 @@ function PowerChart() {
     let newOption = JSON.parse(JSON.stringify(option2));
     newOption.series[0].data = zeroData;
     newOption.series[1].data = zeroData;
-    
-      // console.log("🪵 [chart.tsx:281] ~ token ~ \x1b[0;32mchartInstance\x1b[0m = ", chartInstance.current);
-      if (chartInstance.current) {
+    invoke('reset_data', { config },);
+
+
+    // console.log("🪵 [chart.tsx:281] ~ token ~ \x1b[0;32mchartInstance\x1b[0m = ", chartInstance.current);
+    if (chartInstance.current) {
       chartInstance.current.setOption(newOption);
     }
   }
-
   
+  const chartClick = (params: any) => {
+    console.log("🪵 [chart.tsx:330] ~ token ~ \x1b[0;32mparams\x1b[0m = ", params);
+    if (!chartInstance.current) {
+      return;
+  }
+// 如果点击的是散点图上的点
+if (params.componentType === 'series' && params.seriesType === 'scatter') {
+  const dataIndex = params.dataIndex;
 
+  if (currentActiveDataIndex === dataIndex) {
+      // 如果点击的是同一个点，则隐藏 tooltip
+      chartInstance.current.dispatchAction({
+          type: 'hideTip'
+      });
+      setCurrentActiveDataIndex(-1);
+  } else {
+      // 隐藏上一个固定显示的 tooltip (如果有)
+      if (currentActiveDataIndex !== -1) {
+        chartInstance.current.dispatchAction({
+              type: 'hideTip'
+          });
+      }
+      // 显示当前点击点的 tooltip
+      chartInstance.current.dispatchAction({
+          type: 'showTip',
+          seriesIndex: params.seriesIndex,
+          dataIndex: dataIndex
+      });
+      setCurrentActiveDataIndex(dataIndex);
+  }
+} else {
+  // 如果点击了图表其他区域，隐藏 tooltip
+  chartInstance.current.dispatchAction({
+      type: 'hideTip'
+  });
+  setCurrentActiveDataIndex(-1);
+}
+  }
 
   useEffect(() => {
 
     // 在组件挂载后初始化 ECharts 实例
     chartInstance.current = init(chartRef.current);
     chartInstance.current.setOption(option2);
+    // chartInstance.current.on('click', chartClick);
 
     // 在组件卸载时销毁 ECharts 实例，防止内存泄漏
     let removeListen = addListen()
-    
+
     return () => {
       if (chartInstance.current) {
         chartInstance.current.dispose();
       }
       removeListen()
     };
-  }, []); 
+  }, []);
 
   useEffect(() => {
-    
-  },[isCatching])
+
+  }, [isCatching])
 
   useEffect(() => {
     restartUdp()
   }, [config]);
 
   useEffect(() => {
-    if(windowSize){
+    if (windowSize) {
       setChartHeight(windowSize?.innerHeight - 140)
       sleep(15).then(() => {
         chartInstance.current?.resize()
@@ -361,7 +402,7 @@ function PowerChart() {
   }, [windowSize])
 
   return <div className='w-full h-full'>
-    <div ref={chartRef} className='w-full ' style={{height:chartHeight+'px'}}></div>
+    <div ref={chartRef} className='w-full ' style={{ height: chartHeight + 'px' }}></div>
     <div className='flex items-center justify-center pt-8'>
 
       <Button theme={isCatching ? "warning" : 'success'} variant="base" title='开始记录' className='' size='large' onClick={() => { startUdp() }} >
@@ -374,19 +415,18 @@ function PowerChart() {
       <span className='mr-8'></span>
       {
         hideBtnShow && [
-          <Button theme={'primary'}
-            // disabled={!isCatching}
-            variant="base" title='save record file' className='' size='large' onClick={() => { saveLoaclUdpData() }} >
-            {/* {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}test */}
-            <RecordIcon size={26} />
-          </Button>,
-          <span className='mr-8'></span>,
+
           <Button theme={isCatching ? "warning" : 'success'} variant="base" title='test开始记录' className='' size='large' onClick={() => { testStartUdp() }} >
             {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}
             <span className=' leading-8'>test local data</span>
           </Button>,
           <span className='mr-8'></span>,
-
+          <span>自动保存源数据</span>,
+          <Switch className='' size='large' onChange={(e:boolean) => { saveLoaclUdpData(e) }} customValue={[true, false]} value={isSaveing} >
+            {/* {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}test */}
+            {/* <RecordIcon size={26} /> */}
+          </Switch>,
+          <span className='mr-8'></span>,
         ]
       }
 
