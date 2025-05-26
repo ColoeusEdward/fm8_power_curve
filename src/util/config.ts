@@ -660,6 +660,7 @@ export const option2 = {
 			// 		return tooltipContent;
 			// }
 	},
+	animation: false,
 	toolbox: {
     feature: {
       saveAsImage: {},
