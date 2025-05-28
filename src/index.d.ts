@@ -8,6 +8,11 @@ type UdpEvent2 = {
   data:{data:UdpDataItem2},
 }
 
+type MaxAreaEvent = {
+  event: 'dataIn',
+  data:{data:number[]},
+}
+
 type RealTimeEvent = {
   event: 'dataIn',
   data:{data:TelemetryDataItem},

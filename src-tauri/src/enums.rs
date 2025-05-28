@@ -83,6 +83,20 @@ pub enum UdpDataEvent2<'a> {
     tag = "event",
     content = "data"
 )]
+pub enum MaxAreaEvent<'a> {
+    DataIn {
+        data: &'a Vec<i32>,
+        //  content_length: usize,
+    },
+}
+
+#[derive(Clone, Serialize)]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "event",
+    content = "data"
+)]
 pub enum RealTimeDataEvent<'a> {
     DataIn {
         data: &'a TelemetryDataItem,
@@ -209,6 +223,11 @@ pub struct UdpDataItem {
 pub struct UdpDataItem2 {
     pub power: Vec<Vec<i32>>,
     pub torque: Vec<Vec<i32>>,
+}
+
+#[derive(Clone, Serialize)]
+pub struct MaxAreaItem {
+    pub rpm_zone: Vec<i32>, //[start,end]
 }
 
 #[derive(Clone, Serialize)]

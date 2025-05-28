@@ -9,7 +9,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::{
     config::TELEMETRY_FIELDS,
-    enums::{self, DownloadEvent, RealTimeDataEvent, TelemetryDataItem, UdpDataEvent2, UdpDataItem2},
+    enums::{self, DownloadEvent, MaxAreaEvent, RealTimeDataEvent, TelemetryDataItem, UdpDataEvent2, UdpDataItem2},
     util::{is_port_available, load_raw_bytes_from_file, read_fn_map, save_raw_bytes_to_file},
 };
 
@@ -87,6 +87,7 @@ pub async fn init_config(
             .collect::<Vec<_>>();
         let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
         let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+        reset_data();
         // let pcdata =  POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
         // let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
         while thread_running_flag.load(Ordering::SeqCst) {
@@ -191,8 +192,8 @@ pub async fn init_config(
         save_data_to_file();
         win.emit("connect_stop", format!("UDP listener thread stopped: "))
             .unwrap();
-        pcdata.lock().unwrap().clear();
-        todata.lock().unwrap().clear();
+        // pcdata.lock().unwrap().clear();
+        // todata.lock().unwrap().clear();
     });
     Ok(())
 }
@@ -204,7 +205,7 @@ pub fn stop_udp(_win: tauri::Window) {
 }
 
 #[tauri::command]
-pub fn reset_data(_win: tauri::Window) {
+pub fn reset_data() {
     let pcdata =  POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
     let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
     pcdata.lock().unwrap().clear();
@@ -327,6 +328,7 @@ pub fn local_data_test_mode(
 
             let pcdata = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
             let todata = TORQUE_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+            reset_data();
 
             // let pcdata = POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
             // let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
@@ -385,8 +387,8 @@ pub fn local_data_test_mode(
             
             sleep(Duration::from_millis(15)).await;
         }
-        pcdata.lock().unwrap().clear();
-        todata.lock().unwrap().clear();
+        // pcdata.lock().unwrap().clear();
+        // todata.lock().unwrap().clear();
     });
 }
 
@@ -509,6 +511,87 @@ fn get_local_data_list() -> Result<Vec<String>, io::Error> {
         }
     }
     Ok(name_list)
+}
+
+#[tauri::command(async)]
+pub fn calc_max_area_rpm_zone(rpm_length:i32,max_area_event: tauri::ipc::Channel<MaxAreaEvent<'static>>,_win: tauri::Window) {
+    // println!("🪵 [udp.rs:517]~ token ~ \x1b[0;32mrpm_length\x1b[0m = {}", rpm_length);
+    let pcdata = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
+
+    let _ = tauri::async_runtime::spawn(async move {
+        let plist:Vec<Vec<i32>> = pcdata.lock().unwrap().clone().into_values().collect();
+        // let mut max_area:Vec<i32> = Vec::new(); //[start_rpm,area]
+        // let mut area_list:Vec<Vec<i32>> = Vec::new();//[[start_rpm,area]] 每一小格的面积
+        let mut cumulative_areas:Vec<i32> = [0].to_vec();  //每一小格累加面积
+        let mut best_start = 0;
+        let mut best_end = 0;
+        let mut min_real_rpm_index:usize = 0;
+        let mut max_area:i32 = -1;
+        // let max_rpm = plist[plist.len()-1][0];
+
+        for i in 0..plist.len()-1{
+            let item = &plist[i];
+            let item_next = &plist[i+1];
+            if item[0] < 4000  {
+                cumulative_areas.push(0);
+                continue;
+            }
+            if min_real_rpm_index == 0 {
+                min_real_rpm_index = i;
+            }
+
+            let area:i32 = (item_next[0]-item[0])*(item_next[1]+item[1])/2;
+            // println!("🪵 [udp.rs:543]~ token ~ \x1b[0;32marea\x1b[0m = {}", area);
+            cumulative_areas.push(cumulative_areas[i] + area);
+        }
+        // println!("🪵 [udp.rs:547]~ token ~ \x1b[0;32mmin_real_rpm_index\x1b[0m = {}", min_real_rpm_index);
+
+        for i in min_real_rpm_index..plist.len()-1{
+            // 'j' 是窗口的结束点索引
+            // 我们要找到第一个 data[j].x 使得 data[j].x - data[i].x >= windowLength
+            let mut j = i;
+                // println!("🪵 [udp.rs:553]~ token ~ \x1b[0;32mplist[j][0] \x1b[0m = {}  {}", plist[j][0],plist[i][0] );
+            while j < plist.len() && (plist[j][0] - plist[i][0]) < rpm_length {
+                // println!("🪵 [udp.rs:562]~ token ~ \x1b[0;32mcur_area\x1b[0m = {} {}", i,j);
+                j = j+1;
+            }
+
+            // 确保找到了一个有效的结束点，并且窗口内至少有两个点才能计算面积
+            // j 必须是有效的索引，并且 j 必须大于 i
+            if j < plist.len() && j > i {
+                // 使用预计算的累积面积来快速获取当前窗口的面积
+                // cumulativeAreas[j] 包含了从 data[0] 到 data[j] 的面积
+                // cumulativeAreas[i] 包含了从 data[0] 到 data[i] 的面积
+                // 两者相减就是 data[i] 到 data[j] 之间的面积
+                let cur_area = cumulative_areas[j] - cumulative_areas[i];
+                // println!("🪵 [udp.rs:562]~ token ~ \x1b[0;32mcur_area\x1b[0m = {} {} {}", i,j,cur_area);
+
+                if cur_area > max_area {
+                    max_area = cur_area;
+                    best_start = i;
+                    best_end = j;  // 注意：这里的 endIndex 是包含的，表示 data[j] 是窗口的最后一个点
+                }else if cur_area < max_area{
+                    break;
+                }
+            }
+        }
+
+        // println!("🪵 [udp.rs:545]~ token ~ \x1b[0;32mcumulative_areas\x1b[0m = {} {} {} {}", cumulative_areas[cumulative_areas.len()-1],max_area,best_start,best_end);
+
+        let res = max_area_event.send(MaxAreaEvent::DataIn { data: &[plist[best_start][0],plist[best_end][0]].to_vec() });
+        match res {
+            Ok(_) => {}
+            Err(e) => {
+                println!("Failed to send data to channel: {}", e);
+                _win.emit(
+                    "connect_fail",
+                    format!("Failed to send data to channel: {}", e),
+                )
+                .unwrap();
+            }
+        }
+        
+    });
 }
 
 // fn build_chart_data2(pcdata: &Arc<Mutex<Vec<Vec<i32>>>>, todata: &Arc<Mutex<Vec<Vec<i32>>>>,vv:&Vec<i32>){

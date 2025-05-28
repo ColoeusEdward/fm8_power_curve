@@ -11,3 +11,7 @@ export const realTimeDataAtom = atom<TelemetryDataItem>()
 export const hideBtnShowAtom = atomWithStorage('hideBtnShowAtom',false)
 
 export const windowSizeAtom = atom<Window>()
+
+export const calcMaxDisableAtom = atom<boolean>(true)
+
+export const maxRpmZoneAtom = atom<number[]>([])

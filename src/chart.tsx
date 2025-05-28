@@ -1,14 +1,14 @@
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
-import { ECharts, init } from 'echarts';
+import { ECharts, init, registerTransform } from 'echarts';
 import { AlarmClockIcon, PauseIcon, PlayIcon, RecordIcon, ResetIcon } from './icon/svg';
-import { Button, MessagePlugin, Switch } from 'tdesign-react';
+import { Button, Dialog, InputNumber, MessagePlugin, Switch } from 'tdesign-react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke, Channel } from '@tauri-apps/api/core';
-import { configAtom, hideBtnShowAtom, maxDataAtom, realTimeDataAtom, windowSizeAtom } from './store';
+import { calcMaxDisableAtom, configAtom, hideBtnShowAtom, maxDataAtom, maxRpmZoneAtom, realTimeDataAtom, windowSizeAtom } from './store';
 import { useAtom } from 'jotai';
 import { getMsgOpt, isDev, listenHideCode, sleep } from './util';
-import { tr } from 'framer-motion/client';
 import { option2 } from './util/config';
+import { regression } from 'echarts-stat';
 
 const option = {
   "xAxis": {
@@ -130,6 +130,7 @@ const chartData = {
   torque: [] as number[][]
 }
 let initCount = 0
+let nowOption:any = {}
 function PowerChart() {
   const chartRef = useRef(null);
   const zeroData: [number, number][] = []
@@ -140,10 +141,13 @@ function PowerChart() {
   const [maxDataItem, setMaxDataItem] = useAtom(maxDataAtom)
   const [realTimeData, setRealTimeData] = useAtom(realTimeDataAtom)
   const [hideBtnShow, setHideBtnShow] = useAtom(hideBtnShowAtom)
+  const [calcMaxDisable, setCalcMaxDisable] = useAtom(calcMaxDisableAtom)
   const [chartHeight, setChartHeight] = useState(580)
   const [windowSize, setWindowSize] = useAtom(windowSizeAtom)
   const [isSaveing, setIsSaveing] = useState(false)
   const [currentActiveDataIndex, setCurrentActiveDataIndex] = useState<number>(-1);
+  const [maxRpmZone, setMaxRpmZone] = useAtom(maxRpmZoneAtom)
+
 
   const startUdp = useCallback((forceStart?: boolean) => {
     console.log("🪵 [chart.tsx:18] startUdp ~ token ~ \x1b[0;32misCatching\x1b[0m = ", isCatching);
@@ -172,11 +176,15 @@ function PowerChart() {
     return onEvent
   }
 
-  const testEvent = () => {
+  const powerEvent = () => {
     const onEvent = new Channel<UdpEvent2>();
     onEvent.onmessage = (message) => {
       let dat = message.data;
       try {
+        console.log("🪵 [chart.tsx:182] ~ token ~ \x1b[0;32mdat.data.power.length\x1b[0m = ", dat.data.power.length);
+        if(dat.data.power.length > 100 && calcMaxDisable) {
+          setCalcMaxDisable(false)
+        }
         buildData(dat.data)
         setMaxData(dat.data)
       } catch (error) {
@@ -202,14 +210,14 @@ function PowerChart() {
 
       invoke('local_data_test_mode', { config, realTimeEvent: realTimeEvent() },);
       sleep(50).then(() => {
-        invoke('loop_send_data', { config, reader: testEvent() },);
+        invoke('loop_send_data', { config, reader: powerEvent() },);
       })
     }
 
   }, [isCatching, config]);
 
-  const saveLoaclUdpData = (val:boolean) => {
-    invoke('set_saving_data_flag', { config,isOpen:val },);
+  const saveLoaclUdpData = (val: boolean) => {
+    invoke('set_saving_data_flag', { config, isOpen: val },);
     setIsSaveing(val)
   }
   const setMaxData = (data: UdpDataItem2) => {
@@ -239,8 +247,15 @@ function PowerChart() {
     // chartData.power = plist;
     // chartData.torque = tlist
     let newOption = JSON.parse(JSON.stringify(option2));
-    newOption.series[0].data = plist;
-    newOption.series[1].data = tlist;
+    // var myRegression = regression("polynomial", plist, 4);
+    // myRegression.points.sort(function (a, b) {
+    //   return a[0] - b[0];
+    // });
+    newOption.dataset.source = plist.map((e, i) => [e[0], e[1], tlist[i][1]]);
+
+    nowOption = newOption
+    // newOption.series[0].data = plist;
+    // newOption.series[1].data = tlist;
     if (chartInstance.current) {
       chartInstance.current.setOption(newOption);
     }
@@ -253,13 +268,18 @@ function PowerChart() {
       let dat = message.data;
       buildData(dat.data)
       setMaxData(dat.data)
+      if(dat.data.power.length > 300 && calcMaxDisable) {
+        setCalcMaxDisable(false)
+      }
       // console.log("🪵 [chart.tsx:149] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
       // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
       // console.log(`got download event ${message.event}`);
     };
+
+    setCalcMaxDisable(true)
     invoke('init_config', { config, realTimeEvent: realTimeEvent() },);
     sleep(50).then(() => {
-      invoke('loop_send_data', { config, reader: testEvent() },);
+      invoke('loop_send_data', { config, reader: powerEvent() },);
     })
   }, [isCatching, config])
 
@@ -318,6 +338,7 @@ function PowerChart() {
     let newOption = JSON.parse(JSON.stringify(option2));
     newOption.series[0].data = zeroData;
     newOption.series[1].data = zeroData;
+    setCalcMaxDisable(true)
     invoke('reset_data', { config },);
 
 
@@ -326,44 +347,45 @@ function PowerChart() {
       chartInstance.current.setOption(newOption);
     }
   }
-  
+
+
   const chartClick = (params: any) => {
     console.log("🪵 [chart.tsx:330] ~ token ~ \x1b[0;32mparams\x1b[0m = ", params);
     if (!chartInstance.current) {
       return;
-  }
-// 如果点击的是散点图上的点
-if (params.componentType === 'series' && params.seriesType === 'scatter') {
-  const dataIndex = params.dataIndex;
+    }
+    // 如果点击的是散点图上的点
+    if (params.componentType === 'series' && params.seriesType === 'scatter') {
+      const dataIndex = params.dataIndex;
 
-  if (currentActiveDataIndex === dataIndex) {
-      // 如果点击的是同一个点，则隐藏 tooltip
-      chartInstance.current.dispatchAction({
-          type: 'hideTip'
-      });
-      setCurrentActiveDataIndex(-1);
-  } else {
-      // 隐藏上一个固定显示的 tooltip (如果有)
-      if (currentActiveDataIndex !== -1) {
+      if (currentActiveDataIndex === dataIndex) {
+        // 如果点击的是同一个点，则隐藏 tooltip
         chartInstance.current.dispatchAction({
-              type: 'hideTip'
+          type: 'hideTip'
+        });
+        setCurrentActiveDataIndex(-1);
+      } else {
+        // 隐藏上一个固定显示的 tooltip (如果有)
+        if (currentActiveDataIndex !== -1) {
+          chartInstance.current.dispatchAction({
+            type: 'hideTip'
           });
-      }
-      // 显示当前点击点的 tooltip
-      chartInstance.current.dispatchAction({
+        }
+        // 显示当前点击点的 tooltip
+        chartInstance.current.dispatchAction({
           type: 'showTip',
           seriesIndex: params.seriesIndex,
           dataIndex: dataIndex
+        });
+        setCurrentActiveDataIndex(dataIndex);
+      }
+    } else {
+      // 如果点击了图表其他区域，隐藏 tooltip
+      chartInstance.current.dispatchAction({
+        type: 'hideTip'
       });
-      setCurrentActiveDataIndex(dataIndex);
-  }
-} else {
-  // 如果点击了图表其他区域，隐藏 tooltip
-  chartInstance.current.dispatchAction({
-      type: 'hideTip'
-  });
-  setCurrentActiveDataIndex(-1);
-}
+      setCurrentActiveDataIndex(-1);
+    }
   }
 
   useEffect(() => {
@@ -371,6 +393,7 @@ if (params.componentType === 'series' && params.seriesType === 'scatter') {
     // 在组件挂载后初始化 ECharts 实例
     chartInstance.current = init(chartRef.current);
     chartInstance.current.setOption(option2);
+    setCalcMaxDisable(true)
     // chartInstance.current.on('click', chartClick);
 
     // 在组件卸载时销毁 ECharts 实例，防止内存泄漏
@@ -385,8 +408,25 @@ if (params.componentType === 'series' && params.seriesType === 'scatter') {
   }, []);
 
   useEffect(() => {
-
-  }, [isCatching])
+    if (maxRpmZone.length > 0 && chartInstance.current && nowOption.series) {
+      nowOption.series[0].markArea.data = [
+        	[
+        		{
+        			xAxis: maxRpmZone[0], // 区域的x轴起始点，可以是具体数值，也可以是 'min', 'max', 'average'
+        			yAxis: 0
+        	},
+        	{
+        			xAxis: maxRpmZone[1], // 区域的x轴结束点
+        			yAxis: 'max'
+        	}
+        	]
+        ]
+        nowOption.series[0].markLine.data = [
+          { xAxis: maxRpmZone[0] }, { xAxis: maxRpmZone[1] }
+        ]  
+      chartInstance.current?.setOption(nowOption)
+    }
+  }, [maxRpmZone])
 
   useEffect(() => {
     restartUdp()
@@ -405,6 +445,7 @@ if (params.componentType === 'series' && params.seriesType === 'scatter') {
     <div ref={chartRef} className='w-full ' style={{ height: chartHeight + 'px' }}></div>
     <div className='flex items-center justify-center pt-8'>
 
+
       <Button theme={isCatching ? "warning" : 'success'} variant="base" title='开始记录' className='' size='large' onClick={() => { startUdp() }} >
         {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}
       </Button>
@@ -412,6 +453,8 @@ if (params.componentType === 'series' && params.seriesType === 'scatter') {
       <Button theme="danger" size='large' title='重置图表' variant="base" onClick={reset}>
         <ResetIcon size={36} />
       </Button>
+      <span className='mr-8'></span>
+      <CalcBtn />
       <span className='mr-8'></span>
       {
         hideBtnShow && [
@@ -422,7 +465,7 @@ if (params.componentType === 'series' && params.seriesType === 'scatter') {
           </Button>,
           <span className='mr-8'></span>,
           <span>自动保存源数据</span>,
-          <Switch className='' size='large' onChange={(e:boolean) => { saveLoaclUdpData(e) }} customValue={[true, false]} value={isSaveing} >
+          <Switch className='' size='large' onChange={(e: boolean) => { saveLoaclUdpData(e) }} customValue={[true, false]} value={isSaveing} >
             {/* {isCatching ? <PauseIcon size={36} /> : <PlayIcon size={36} />}test */}
             {/* <RecordIcon size={26} /> */}
           </Switch>,
@@ -438,3 +481,58 @@ if (params.componentType === 'series' && params.seriesType === 'scatter') {
 }
 
 export default memo(PowerChart);
+
+const CalcBtn = memo(() => {
+
+  const [calcMaxDisable, setCalcMaxDisable] = useAtom(calcMaxDisableAtom)
+  const [visible, setVisible] = useState(false);
+  const [calcMaxRange, setCalcMaxRange] = useState<number>()
+  const [maxRpmZone, setMaxRpmZone] = useAtom(maxRpmZoneAtom)
+
+  const calc_max_click = () => {
+    setVisible(true)
+    
+  }
+  const maxAreaEvent = () => {
+    const onEvent = new Channel<MaxAreaEvent>();
+    onEvent.onmessage = (message) => {
+      let dat = message.data
+      setMaxRpmZone(dat.data)
+    };
+    return onEvent
+  }
+  const confirmFn = () => {
+    if(calcMaxRange == 0 || !calcMaxRange){
+      MessagePlugin.warning({ content: '请输入转速区间大小', ...getMsgOpt() });
+    }else{
+      setVisible(false)
+      invoke('calc_max_area_rpm_zone', { rpmLength: calcMaxRange,maxAreaEvent:maxAreaEvent() });
+    }
+  }
+
+
+  return [
+    <Button theme="primary" size='large' title='' variant="base" onClick={calc_max_click} disabled={calcMaxDisable} >
+      {/* <ResetIcon size={36} /> */}
+      计算最大面积区间
+    </Button>,
+    <Dialog
+      mode="modeless"
+      header="计算最大面积区间"
+      draggable={true}
+      visible={visible}
+      onClose={() => { setVisible(false) }}
+      onOpened={() => {
+        // console.log('dialog is open');
+      }}
+      onConfirm={confirmFn}
+      confirmBtn="计算"
+      onCancel={() => { setVisible(false) }}
+    >
+      <span className=' mr-2'>转速区间大小</span>
+      <InputNumber size='large' theme="normal"
+      placeholder='请输入数字'
+         value={calcMaxRange} onChange={(value) => { setCalcMaxRange(value as number) }} />
+    </Dialog>
+  ]
+})

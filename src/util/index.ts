@@ -55,3 +55,22 @@ export const listenHideCode = (func: () => void) => {
     // console.log("🪵 [index.ts:54] ~ token ~ \x1b[0;32mkeydown\x1b[0m = ", 'keydown监听移除');
   }
 }
+
+export const  calculateFittedCurveData = (rawData: number[][]) => {
+  // 实际项目中，这里会调用一个统计库进行拟合
+  // 例如，使用 simple-statistics 的 polynomialRegression
+  // const regression = ss.polynomialRegression(rawData.map(d => ({ x: d[0], y: d[1] })), 2); // 2次多项式
+  // const line = ss.polynomialRegressionLine(regression);
+
+  const fittedPoints = [];
+  const minRPM = Math.min(...rawData.map(d => d[0]));
+  const maxRPM = Math.max(...rawData.map(d => d[0]));
+
+  // 在 RPM 范围内，以较小步长生成曲线点
+  for (let rpm = minRPM; rpm <= maxRPM; rpm += 50) { // 每50RPM计算一个点
+      // const predictedHP = line(rpm); // 实际的拟合函数调用
+      const predictedHP = 0.000005 * rpm * rpm + 0.05 * rpm + 10; // 这是一个简单的示例二次函数
+      fittedPoints.push([rpm, predictedHP]);
+  }
+  return fittedPoints;
+}

@@ -1,5 +1,5 @@
 use udp::{
-    fuck_channel, init_config, local_data_test_mode, loop_send_data, reset_data, set_saving_data_flag, stop_udp, test_channel_data
+    calc_max_area_rpm_zone, fuck_channel, init_config, local_data_test_mode, loop_send_data, reset_data, set_saving_data_flag, stop_udp, test_channel_data
 };
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -30,7 +30,8 @@ pub fn run() {
             local_data_test_mode,
             fuck_channel,
             loop_send_data,
-            reset_data
+            reset_data,
+            calc_max_area_rpm_zone
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

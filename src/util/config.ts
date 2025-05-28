@@ -1,3 +1,4 @@
+
 const configs = {
 
 	"Dash": [
@@ -636,6 +637,15 @@ const configs = {
 
 
 export const option2 = {
+	dataset:{
+		source: [
+			// [RPM, 马力, 扭矩]
+			// [1000, 50, 180],
+			// [1500, 75, 200],
+			// ... 大量数据
+		]
+	},
+
 	// Chart title
 	// title: {
 	// 		text: '发动机性能曲线 (RPM vs. 马力 & 扭矩)',
@@ -756,19 +766,51 @@ export const option2 = {
 					symbolSize: 4, 
 					large: true, // 启用大数据量优化
         	largeThreshold: 300, // 当数据量超过2000时，启用优化模式
-					data: [
-							// Example data: [RPM, Horsepower]
-							// [1000, 50],
-							// [1500, 75],
-							// [2000, 100],
-							// [2500, 120],
-							// [3000, 140],
-							// [3500, 155],
-							// [4000, 160],
-							// [4500, 150],
-							// [5000, 130]
-							// ... add your actual horsepower data here
-					]
+					datasetIndex: 0,
+					encode: {
+						x: 0, // 对应 dataset source 的第一列 (RPM)
+						y: 1  // 对应 dataset source 的第二列 (马力)
+					},
+					markLine: {
+						symbol: ['none', 'none'],
+						// data: [{ xAxis: 6100 }, { xAxis: 6600 }],
+						// markLine 的全局样式
+          //   lineStyle: {
+					// 		// color: '#72f197', // 设置 markLine 的颜色为红色
+					// 		// type: 'solid', // 线的类型，例如 'solid', 'dashed', 'dotted'
+					// 		// width: 1 // 线的宽度
+					// },
+					},
+					markArea: {
+						// data: [
+						// 	[
+						// 		{
+						// 			xAxis: 6100, // 区域的x轴起始点，可以是具体数值，也可以是 'min', 'max', 'average'
+						// 			yAxis: 0
+						// 	},
+						// 	{
+						// 			xAxis: 6600, // 区域的x轴结束点
+						// 			yAxis: 'max'
+						// 	}
+						// 	]
+						// ],
+						itemStyle: {
+							color: 'rgba(86, 192, 141, 0.2)' // 区域的颜色和透明度
+					},
+					}
+					// data: [
+					// 		// Example data: [RPM, Horsepower]
+					// 		// [1000, 50],
+					// 		// [1500, 75],
+					// 		// [2000, 100],
+					// 		// [2500, 120],
+					// 		// [3000, 140],
+					// 		// [3500, 155],
+					// 		// [4000, 160],
+					// 		// [4500, 150],
+					// 		// [5000, 130]
+					// 		// ... add your actual horsepower data here
+					// ]
 			},
 			{
 					name: '扭矩', // Corresponds to legend data
@@ -780,19 +822,44 @@ export const option2 = {
 					symbolSize: 4, 
 					large: true, // 启用大数据量优化
         	largeThreshold: 300, // 当数据量超过2000时，启用优化模式
-					data: [
-							// Example data: [RPM, Torque]
-							// [1000, 180],
-							// [1500, 200],
-							// [2000, 220],
-							// [2500, 230],
-							// [3000, 225],
-							// [3500, 210],
-							// [4000, 190],
-							// [4500, 170],
-							// [5000, 150]
-							// ... add your actual torque data here
-					]
-			}
+					datasetIndex: 0,
+					encode: {
+						x: 0, // 对应 dataset source 的第一列 (RPM)
+						y: 2  // 对应 dataset source 的第二列 (马力)
+				},
+					// data: [
+					// 		// Example data: [RPM, Torque]
+					// 		// [1000, 180],
+					// 		// [1500, 200],
+					// 		// [2000, 220],
+					// 		// [2500, 230],
+					// 		// [3000, 225],
+					// 		// [3500, 210],
+					// 		// [4000, 190],
+					// 		// [4500, 170],
+					// 		// [5000, 150]
+					// 		// ... add your actual torque data here
+					// ]
+			},
+		// 	{
+		// 		name: '马力拟合曲线', // 拟合后的曲线
+		// 		type: 'line',
+		// 		smooth: true, // 拟合曲线通常是平滑的
+		// 		showSymbol: false, // 拟合曲线通常不显示点
+		// 		yAxisIndex: 0,
+		// 		itemStyle: {
+		// 				color: '#c23531' // 红色
+		// 		},
+		// 		lineStyle: {
+		// 				type: 'dashed' // 可以设置为虚线，区分原始散点
+		// 		},
+		// 		label: { show: true, fontSize: 16 },
+		// 		datasetIndex: 0,
+		// 		encode: {
+		// 			x: 3, //拟合rpm
+		// 			y: 4  //拟合马力
+		// 		},
+		// 		// data: [] // 使用拟合后的数据
+		// },
 	]
 };
