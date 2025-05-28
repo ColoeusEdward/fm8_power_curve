@@ -527,6 +527,7 @@ pub fn calc_max_area_rpm_zone(rpm_length:i32,max_area_event: tauri::ipc::Channel
         let mut best_end = 0;
         let mut min_real_rpm_index:usize = 0;
         let mut max_area:i32 = -1;
+        // let mut down_count = 0;
         // let max_rpm = plist[plist.len()-1][0];
 
         for i in 0..plist.len()-1{
@@ -570,9 +571,13 @@ pub fn calc_max_area_rpm_zone(rpm_length:i32,max_area_event: tauri::ipc::Channel
                     max_area = cur_area;
                     best_start = i;
                     best_end = j;  // 注意：这里的 endIndex 是包含的，表示 data[j] 是窗口的最后一个点
-                }else if cur_area < max_area{
-                    break;
                 }
+                // else if cur_area < max_area{//
+                //     down_count = down_count + 1;
+                //     if down_count > 2{
+                //         break;
+                //     }
+                // }
             }
         }
 

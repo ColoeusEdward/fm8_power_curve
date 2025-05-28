@@ -181,7 +181,7 @@ function PowerChart() {
     onEvent.onmessage = (message) => {
       let dat = message.data;
       try {
-        console.log("🪵 [chart.tsx:182] ~ token ~ \x1b[0;32mdat.data.power.length\x1b[0m = ", dat.data.power.length);
+        // console.log("🪵 [chart.tsx:182] ~ token ~ \x1b[0;32mdat.data.power.length\x1b[0m = ", dat.data.power.length);
         if(dat.data.power.length > 100 && calcMaxDisable) {
           setCalcMaxDisable(false)
         }
