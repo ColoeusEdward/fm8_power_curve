@@ -74,3 +74,7 @@ export const  calculateFittedCurveData = (rawData: number[][]) => {
   }
   return fittedPoints;
 }
+
+export function roundToDecimalPlaces(num:number, digits = 2) {
+  return parseFloat(num.toFixed(digits));
+}

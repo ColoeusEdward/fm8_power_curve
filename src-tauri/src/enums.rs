@@ -85,7 +85,7 @@ pub enum UdpDataEvent2<'a> {
 )]
 pub enum MaxAreaEvent<'a> {
     DataIn {
-        data: &'a Vec<i32>,
+        data: &'a Vec<f32>,
         //  content_length: usize,
     },
 }
@@ -221,8 +221,8 @@ pub struct UdpDataItem {
 
 #[derive(Clone, Serialize)]
 pub struct UdpDataItem2 {
-    pub power: Vec<Vec<i32>>,
-    pub torque: Vec<Vec<i32>>,
+    pub power: Vec<Vec<f32>>,
+    pub torque: Vec<Vec<f32>>,
 }
 
 #[derive(Clone, Serialize)]

@@ -9,7 +9,7 @@ import PowerChart from "./chart";
 import { Button, Divider, Input, MessagePlugin, Statistic } from "tdesign-react";
 import { useAtom } from "jotai";
 import { configAtom, maxDataAtom, realTimeDataAtom, windowSizeAtom } from "./store";
-import { getMsgOpt, sleep } from "./util";
+import { getMsgOpt, roundToDecimalPlaces, sleep } from "./util";
 import { CloseIcon, ForzaLogoIcon, MaximizeIcon, MaximizeRestoreIcon, MinimizeIcon } from "./icon/svg";
 
 function App() {
@@ -22,23 +22,23 @@ function App() {
 
 
   const watachResize = () => {
-    const handle = function() {
+    const handle = function () {
       // 当窗口大小改变时执行的代码
       // console.log('窗口大小已改变！');
       // // 你可以在这里获取新的窗口宽度和高度
       // const newWidth = window.innerWidth;
       // const newHeight = window.innerHeight;
-      setWindowSize({...window})
+      setWindowSize({ ...window })
       sizeChange()
 
       // console.log(`新的宽度: ${newWidth}px, 新的高度: ${newHeight}px`);
-    
+
       // 举例：根据窗口大小调整元素样式或布局
-      
+
     }
     window.addEventListener('resize', handle);
     return () => {
-       window.removeEventListener('resize', handle);
+      window.removeEventListener('resize', handle);
     }
   }
 
@@ -85,8 +85,8 @@ function App() {
   // },[windowSize])
 
   return (
-    <main className="w-full overflow-hidden" style={{ height:windowSize ? windowSize.innerHeight+'px' : '720px' }}>
-      
+    <main className="w-full overflow-hidden" style={{ height: windowSize ? windowSize.innerHeight + 'px' : '720px' }}>
+
       <div data-tauri-drag-region className=" h-8 w-full bg-gray-100 relative z-50 flex items-center">
         <span className={'ml-2'}><ForzaLogoIcon size={40} /></span>
         <span data-tauri-drag-region className="ml-2 text-stone-800 select-none">极限竞速马力曲线绘制工具</span>
@@ -94,14 +94,14 @@ function App() {
           <MinimizeIcon />
         </Button>
         <Button theme="default" size="small" shape="rectangle" style={{ height: '100%', width: '60px', marginLeft: '0', marginRight: '0px' }} onClick={maxWin}  >
-          {isMaxWin ?  <MaximizeRestoreIcon size={24} /> : <MaximizeIcon  size={20} />}
+          {isMaxWin ? <MaximizeRestoreIcon size={24} /> : <MaximizeIcon size={20} />}
         </Button>
         <Button theme="danger" size="small" shape="rectangle" style={{ height: '100%', width: '60px', marginRight: '0px' }} onClick={closeWin}  >
           <CloseIcon />
         </Button>
       </div>
-      <div className="w-full  flex" style={{ height:windowSize ? (windowSize.innerHeight-32)+'px' : '688px' }} >
-        <div className=" h-full  py-[10px] inline-block" style={{width: windowSize ? (windowSize.innerWidth-423)+'px' : '66%'}} >
+      <div className="w-full  flex" style={{ height: windowSize ? (windowSize.innerHeight - 32) + 'px' : '688px' }} >
+        <div className=" h-full  py-[10px] inline-block" style={{ width: windowSize ? (windowSize.innerWidth - 423) + 'px' : '66%' }} >
           <PowerChart></PowerChart>
         </div>
         <div className=" h-full w-[423px]  inline-block "  >
@@ -110,7 +110,7 @@ function App() {
             <Divider align="left" ><span className="text-xl">配置</span></Divider>
             <div className="flex pl-2  w-full relative">
               <span style={{ lineHeight: '32px' }} className="mx-2 w-22 text-gray-600 text-sm text-right  ">游戏遥测IP</span>
-              <Input className="" style={{ width:' 60%' }} value={tempConfig.ip} onChange={(e) => { setTempConfig({ ...tempConfig, ip: e }) }} />
+              <Input className="" style={{ width: ' 60%' }} value={tempConfig.ip} onChange={(e) => { setTempConfig({ ...tempConfig, ip: e }) }} />
 
               {/* <span style={{ lineHeight: '32px' }} className="mx-2"> . </span>
             <Input style={{ width: 50 }} defaultValue="0" />
@@ -121,7 +121,7 @@ function App() {
             </div>
             <div className="flex pl-2 mt-2 shrink-0 w-full ">
               <span style={{ lineHeight: '32px' }} className="mx-2 w-22 text-gray-600 text-sm  text-right">游戏遥测端口</span>
-              <Input style={{ width: '60%'  }} value={tempConfig.port + ""} onChange={(e) => { setTempConfig({ ...tempConfig, port: Number(e) }) }} />
+              <Input style={{ width: '60%' }} value={tempConfig.port + ""} onChange={(e) => { setTempConfig({ ...tempConfig, port: Number(e) }) }} />
             </div>
 
             <div className="flex w-full pl-2 mt-2  justify-end px-2 pt-4">
@@ -159,19 +159,19 @@ const MaxPart: React.FC = memo(() => {
   return (
     <div className="flex pl-6 pt-2 relative  w-full">
       <div className="flex flex-col items-center">
-        <Statistic title="最大马力" value={maxDataItem.power.max} unit="HP" color="red" />
-        <div className="  text-[#d54941]">at {maxDataItem.power.rpm} rpm</div>
+        <Statistic title="最大马力" value={roundToDecimalPlaces(maxDataItem.power.max)} unit="HP" color="red" />
+        <div className="  text-[#d54941]">at {roundToDecimalPlaces(maxDataItem.power.rpm,0)} rpm</div>
       </div>
 
       <span className="mx-4"></span>
       <div className="flex flex-col items-center">
-        <Statistic title="最大扭矩" value={maxDataItem.torque.max} unit="lbf·ft" color="blue" />
-        <span className="   text-[#0052da] ">at {maxDataItem.torque.rpm} rpm</span>
+        <Statistic title="最大扭矩" value={roundToDecimalPlaces(maxDataItem.torque.max)} unit="lbf·ft" color="blue" />
+        <span className="   text-[#0052da] ">at {roundToDecimalPlaces(maxDataItem.torque.rpm,0)} rpm</span>
       </div>
 
 
       <span className="mx-4"></span>
-      <Statistic title="当前转速" value={realTimeData?.current_engine_rpm || 0} unit="rpm" color="orange" />
+      <Statistic title="当前转速" value={roundToDecimalPlaces(realTimeData?.current_engine_rpm || 0,0)} unit="rpm" color="orange" />
     </div>
   )
 })

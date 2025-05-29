@@ -21,8 +21,8 @@ pub static TEMP_SAVING_BUFFER: OnceLock<Mutex<Vec<Vec<u8>>>> = OnceLock::new();
 // pub static POWER_CHART_DATA2: OnceLock<Arc<Mutex<Vec<Vec<i32>>>>> = OnceLock::new();
 // pub static TORQUE_CHART_DATA2: OnceLock<Arc<Mutex<Vec<Vec<i32>>>>> = OnceLock::new();
 
-pub static POWER_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = OnceLock::new();
-pub static TORQUE_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<i32>>>>> = OnceLock::new();
+pub static POWER_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<f32>>>>> = OnceLock::new();
+pub static TORQUE_CHART_DATA: OnceLock<Arc<Mutex<BTreeMap<i32, Vec<f32>>>>> = OnceLock::new();
 
 // pub static READ: OnceLock<tauri::ipc::Channel<UdpDataEvent>> = OnceLock::new();
 // pub static READ: OnceLock<Box<dyn tauri::ipc::Channel<UdpDataEvent>>> = OnceLock::new();
@@ -119,7 +119,7 @@ pub async fn init_config(
                     // win.emit("udp_data",  payload).unwrap();
 
                     // let mut data_vec: Vec<UdpDataItem> = Vec::new();
-                    let mut vv: Vec<i32> = Vec::new();//rpm,power,,torque
+                    let mut vv: Vec<f32> = Vec::new();//rpm,power,,torque
                     // let mut vv: Vec<i32> = Vec::new();//rpm,power,,torque
 
 
@@ -138,7 +138,7 @@ pub async fn init_config(
                         // };
                         vv.push(val);
                     }
-                    if vv[1] > 0 {
+                    if vv[1] > 0.0 {
                         build_chart_data(&pcdata, &todata, &vv);
                     }
                     
@@ -336,7 +336,7 @@ pub fn local_data_test_mode(
 
         for buffer in data {
             // println!("🪵 [udp.rs:280]~ token ~ \x1b[0;32mbuffer\x1b[0m = {}", buffer.len());
-            let mut vv: Vec<i32> = Vec::new();//rpm_val,power_val,,torque_val
+            let mut vv: Vec<f32> = Vec::new();//rpm_val,power_val,,torque_val
 
             // let mut vv: Vec<i32> = Vec::new();//rpm,power,,torque
 
@@ -357,7 +357,7 @@ pub fn local_data_test_mode(
                 vv.push(val);
 
             }
-                if vv[1] > 0 {
+                if vv[1] > 0.0 {
                 build_chart_data(&pcdata, &todata, &vv);
 
                 // pcdata.lock().unwrap().insert(vv[0], [vv[0], vv[1]/ 1000 * 1.34102209 as i32].to_vec());
@@ -385,7 +385,7 @@ pub fn local_data_test_mode(
                 }
             }
             
-            sleep(Duration::from_millis(15)).await;
+            sleep(Duration::from_millis(7)).await;
         }
         // pcdata.lock().unwrap().clear();
         // todata.lock().unwrap().clear();
@@ -443,19 +443,19 @@ fn save_temp_data(buf: [u8; 1500]) -> Result<(), String> {
 }
 
 
-fn build_chart_data(pcdata: &Arc<Mutex<BTreeMap<i32, Vec<i32>>>>, todata: &Arc<Mutex<BTreeMap<i32, Vec<i32>>>>,vv:&Vec<i32>){
+fn build_chart_data(pcdata: &Arc<Mutex<BTreeMap<i32, Vec<f32>>>>, todata: &Arc<Mutex<BTreeMap<i32, Vec<f32>>>>,vv:&Vec<f32>){
 
     // 优化 pcdata 的操作
     {
         let mut pcdata_guard = pcdata.lock().unwrap(); // 一次性获取锁
-        let entry = pcdata_guard.entry(vv[0]); // 使用 entry API 更高效地处理插入或更新
+        let entry = pcdata_guard.entry(vv[0] as i32); // 使用 entry API 更高效地处理插入或更新
 
         // 检查 `vv` 的长度以避免 panic
         if vv.len() < 2 {
             eprintln!("Error: vv must have at least 2 elements for pcdata operation.");
             return; // 或者采取其他错误处理
         }
-        let power =  ( vv[1] as f32 / 1000.0 * 1.34102209) as i32;
+        let power =  vv[1] as f32 / 1000.0 * 1.34102209;
         match entry {
             std::collections::btree_map::Entry::Occupied(mut occupied_entry) => {
                 if occupied_entry.get()[1] < power {
@@ -471,14 +471,14 @@ fn build_chart_data(pcdata: &Arc<Mutex<BTreeMap<i32, Vec<i32>>>>, todata: &Arc<M
     // 优化 todata 的操作
     {
         let mut todata_guard = todata.lock().unwrap(); // 一次性获取锁
-        let entry = todata_guard.entry(vv[0]); // 使用 entry API
+        let entry = todata_guard.entry(vv[0] as i32); // 使用 entry API
 
         // 检查 `vv` 的长度以避免 panic
         if vv.len() < 3 {
             eprintln!("Error: vv must have at least 3 elements for todata operation.");
             return; // 或者采取其他错误处理
         }
-        let torque = (vv[2] as f32 * 0.73756215 ) as i32;
+        let torque = vv[2] as f32 * 0.73756215;
         // println!("🪵 [udp.rs:467]~ token ~ \x1b[0;32mtorque\x1b[0m ={} {}", vv[2],torque);
         match entry {
             std::collections::btree_map::Entry::Occupied(mut occupied_entry) => {
@@ -519,29 +519,29 @@ pub fn calc_max_area_rpm_zone(rpm_length:i32,max_area_event: tauri::ipc::Channel
     let pcdata = POWER_CHART_DATA.get_or_init(|| Arc::new(Mutex::new(BTreeMap::new())));
 
     let _ = tauri::async_runtime::spawn(async move {
-        let plist:Vec<Vec<i32>> = pcdata.lock().unwrap().clone().into_values().collect();
+        let plist:Vec<Vec<f32>> = pcdata.lock().unwrap().clone().into_values().collect();
         // let mut max_area:Vec<i32> = Vec::new(); //[start_rpm,area]
         // let mut area_list:Vec<Vec<i32>> = Vec::new();//[[start_rpm,area]] 每一小格的面积
-        let mut cumulative_areas:Vec<i32> = [0].to_vec();  //每一小格累加面积
+        let mut cumulative_areas:Vec<f32> = [0.0].to_vec();  //每一小格累加面积
         let mut best_start = 0;
         let mut best_end = 0;
         let mut min_real_rpm_index:usize = 0;
-        let mut max_area:i32 = -1;
+        let mut max_area:f32 = -1.0;
         // let mut down_count = 0;
         // let max_rpm = plist[plist.len()-1][0];
 
         for i in 0..plist.len()-1{
             let item = &plist[i];
             let item_next = &plist[i+1];
-            if item[0] < 4000  {
-                cumulative_areas.push(0);
+            if item[0] < 4000.0  {
+                cumulative_areas.push(0.0);
                 continue;
             }
             if min_real_rpm_index == 0 {
                 min_real_rpm_index = i;
             }
 
-            let area:i32 = (item_next[0]-item[0])*(item_next[1]+item[1])/2;
+            let area:f32 = (item_next[0]-item[0])*(item_next[1]+item[1])/2.0 ;
             // println!("🪵 [udp.rs:543]~ token ~ \x1b[0;32marea\x1b[0m = {}", area);
             cumulative_areas.push(cumulative_areas[i] + area);
         }
@@ -552,9 +552,12 @@ pub fn calc_max_area_rpm_zone(rpm_length:i32,max_area_event: tauri::ipc::Channel
             // 我们要找到第一个 data[j].x 使得 data[j].x - data[i].x >= windowLength
             let mut j = i;
                 // println!("🪵 [udp.rs:553]~ token ~ \x1b[0;32mplist[j][0] \x1b[0m = {}  {}", plist[j][0],plist[i][0] );
-            while j < plist.len() && (plist[j][0] - plist[i][0]) < rpm_length {
+            while j < plist.len() && (plist[j][0] - plist[i][0]) < rpm_length as f32 {
                 // println!("🪵 [udp.rs:562]~ token ~ \x1b[0;32mcur_area\x1b[0m = {} {}", i,j);
                 j = j+1;
+            }
+            if j < plist.len() && (plist[j][0] - plist[i][0] - rpm_length as f32) > 5.0 {  //防止超过区间大小太多, 被稀疏数据干扰
+                j = j-1;
             }
 
             // 确保找到了一个有效的结束点，并且窗口内至少有两个点才能计算面积

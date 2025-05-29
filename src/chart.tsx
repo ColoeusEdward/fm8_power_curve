@@ -327,7 +327,7 @@ function PowerChart() {
     if (!isCatching) return
     startUdp()
     sleep(1000).then(() => {
-      console.log(`fucking sleep`,);
+      // console.log(`fucking sleep`,);
       startUdp(true)
     })
   }, [isCatching, config]);
@@ -408,6 +408,7 @@ function PowerChart() {
   }, []);
 
   useEffect(() => {
+      // console.log("🪵 [chart.tsx:411] ~ token ~ \x1b[0;32mmaxRpmZone\x1b[0m = ", maxRpmZone);
     if (maxRpmZone.length > 0 && chartInstance.current && nowOption.series) {
       nowOption.series[0].markArea.data = [
         	[
