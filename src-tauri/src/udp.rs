@@ -402,7 +402,7 @@ pub fn loop_send_data(reader: tauri::ipc::Channel<UdpDataEvent2<'static>>){
         // let pcdata =  POWER_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
         // let todata = TORQUE_CHART_DATA2.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
         let send_data = || -> Result<(), String> {
-            
+            // let test: Vec<Vec<_>> = pcdata.lock().unwrap().clone().into_values().collect();
             let res = reader.send(UdpDataEvent2::DataIn { data: &UdpDataItem2 { 
                 power: pcdata.lock().unwrap().clone().into_values().collect()
                 , torque: todata.lock().unwrap().clone().into_values().collect()} }
@@ -422,6 +422,7 @@ pub fn loop_send_data(reader: tauri::ipc::Channel<UdpDataEvent2<'static>>){
         };
         while thread_running_flag.load(Ordering::SeqCst) {
             send_data().unwrap();
+            
             sleep(Duration::from_millis(500)).await;
         }
     });

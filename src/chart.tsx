@@ -180,6 +180,7 @@ function PowerChart() {
     const onEvent = new Channel<UdpEvent2>();
     onEvent.onmessage = (message) => {
       let dat = message.data;
+      // console.log("🪵 [chart.tsx:182] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
       try {
         // console.log("🪵 [chart.tsx:182] ~ token ~ \x1b[0;32mdat.data.power.length\x1b[0m = ", dat.data.power.length);
         if(dat.data.power.length > 100 && calcMaxDisable) {
@@ -252,10 +253,12 @@ function PowerChart() {
     //   return a[0] - b[0];
     // });
     newOption.dataset.source = plist.map((e, i) => [e[0], e[1], tlist[i][1]]);
+    // console.log("🪵 [chart.tsx:255] ~ token ~ \x1b[0;32mnewOption.dataset.source\x1b[0m = ", newOption.dataset.source);
 
     nowOption = newOption
     // newOption.series[0].data = plist;
     // newOption.series[1].data = tlist;
+      console.log("🪵 [chart.tsx:261] ~ token ~ \x1b[0;32mchartInstance.current\x1b[0m = ", chartInstance.current);
     if (chartInstance.current) {
       chartInstance.current.setOption(newOption);
     }
@@ -336,13 +339,14 @@ function PowerChart() {
     chartData.power = zeroData;
     chartData.torque = zeroData;
     let newOption = JSON.parse(JSON.stringify(option2));
-    newOption.series[0].data = zeroData;
-    newOption.series[1].data = zeroData;
+    // newOption.series[0].data = zeroData;
+    // newOption.series[1].data = zeroData;
+    newOption.dataset.source = zeroData;
     setCalcMaxDisable(true)
     invoke('reset_data', { config },);
 
 
-    // console.log("🪵 [chart.tsx:281] ~ token ~ \x1b[0;32mchartInstance\x1b[0m = ", chartInstance.current);
+    console.log("🪵 [chart.tsx:281] ~ token ~ \x1b[0;32mchartInstance\x1b[0m = ", chartInstance.current);
     if (chartInstance.current) {
       chartInstance.current.setOption(newOption);
     }
