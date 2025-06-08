@@ -271,7 +271,7 @@ function PowerChart() {
       let dat = message.data;
       buildData(dat.data)
       setMaxData(dat.data)
-      if(dat.data.power.length > 300 && calcMaxDisable) {
+      if(dat.data.power.length > 300 ) {
         setCalcMaxDisable(false)
       }
       // console.log("🪵 [chart.tsx:149] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
