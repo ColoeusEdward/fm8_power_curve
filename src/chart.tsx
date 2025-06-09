@@ -183,7 +183,7 @@ function PowerChart() {
       // console.log("🪵 [chart.tsx:182] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
       try {
         // console.log("🪵 [chart.tsx:182] ~ token ~ \x1b[0;32mdat.data.power.length\x1b[0m = ", dat.data.power.length);
-        if(dat.data.power.length > 100 && calcMaxDisable) {
+        if(dat.data.power.length > 100 ) {
           setCalcMaxDisable(false)
         }
         buildData(dat.data)
@@ -266,18 +266,18 @@ function PowerChart() {
 
 
   const initUdp = useCallback(() => {
-    const onEvent = new Channel<UdpEvent2>();
-    onEvent.onmessage = (message) => {
-      let dat = message.data;
-      buildData(dat.data)
-      setMaxData(dat.data)
-      if(dat.data.power.length > 300 ) {
-        setCalcMaxDisable(false)
-      }
-      // console.log("🪵 [chart.tsx:149] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
-      // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
-      // console.log(`got download event ${message.event}`);
-    };
+    // const onEvent = new Channel<UdpEvent2>();
+    // onEvent.onmessage = (message) => {
+    //   let dat = message.data;
+    //   buildData(dat.data)
+    //   setMaxData(dat.data)
+    //   if(dat.data.power.length > 300 ) {
+    //     setCalcMaxDisable(false)
+    //   }
+    //   // console.log("🪵 [chart.tsx:149] ~ token ~ \x1b[0;32mdat\x1b[0m = ", dat);
+    //   // console.log("🪵 [chart.tsx:37] ~ token ~ \x1b[0;32mmessage\x1b[0m = ", message);
+    //   // console.log(`got download event ${message.event}`);
+    // };
 
     setCalcMaxDisable(true)
     invoke('init_config', { config, realTimeEvent: realTimeEvent() },);
